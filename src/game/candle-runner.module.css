@@ -1,0 +1,235 @@
+/*
+ * The game's DOM: top bar, score strip, panel (PRD section 5).
+ * Colours come only from the game's tokens (tokens.css). The class names are the
+ * CandleRunnerClasses contract in types.ts.
+ */
+
+.root {
+  position: relative;
+  width: 100%;
+  color: var(--cr-fg-3);
+  font-family: var(--cr-font);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    opacity 0.45s ease,
+    transform 0.45s ease;
+}
+
+.exit {
+  opacity: 0;
+  transform: translateY(10px);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root {
+    transition: opacity 0.2s ease;
+  }
+  .exit {
+    transform: none;
+  }
+}
+
+.skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
+.skip:focus {
+  left: 0;
+  top: 0;
+  width: auto;
+  height: auto;
+  z-index: 5;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: var(--cr-bg);
+  color: var(--cr-mint);
+  font-size: 13px;
+  text-decoration: none;
+  outline: 1px solid var(--cr-line);
+}
+
+/* top bar: witty line left, timer chip right */
+.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 24px;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.wit {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--cr-fg-3);
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.show {
+  opacity: 1;
+}
+
+.sig {
+  color: var(--cr-green);
+  font-weight: 600;
+  margin-left: 6px;
+  letter-spacing: -0.02em;
+}
+
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--cr-fg-3);
+  border: 1px solid var(--cr-line);
+  border-radius: 999px;
+  padding: 2px 10px 2px 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition:
+    color 0.3s ease,
+    border-color 0.3s ease;
+}
+
+.timer svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+}
+
+.hot {
+  color: var(--cr-amber);
+  border-color: var(--cr-amber-line);
+}
+
+.timerWit {
+  color: inherit;
+  opacity: 0.85;
+}
+
+.timerWit:empty {
+  display: none;
+}
+
+/* score strip: Hi left, rupee note and Score right */
+.hud {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 6px 0 8px;
+  font-size: 12px;
+  line-height: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cr-fg-4);
+}
+
+.hud b {
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.04em;
+  color: var(--cr-fg);
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.score {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.note {
+  display: inline-flex;
+  transform: rotate(-4deg);
+  transform-origin: center;
+}
+
+.note svg {
+  display: block;
+  width: 22px;
+  height: 13px;
+}
+
+.noteBody {
+  fill: var(--cr-note-fill);
+  stroke: var(--cr-note-ink);
+}
+
+.noteFrame {
+  stroke: var(--cr-note-ink);
+}
+
+.noteCoin {
+  fill: var(--cr-note-light);
+  stroke: var(--cr-note-ink);
+}
+
+.noteText {
+  fill: var(--cr-note-text);
+  font-family: var(--cr-font);
+}
+
+.pulse {
+  animation: pulse 0.6s ease;
+}
+
+@keyframes pulse {
+  0% {
+    transform: rotate(-4deg) scale(1);
+  }
+  35% {
+    transform: rotate(-12deg) scale(1.35);
+  }
+  70% {
+    transform: rotate(-2deg) scale(0.94);
+  }
+  100% {
+    transform: rotate(-4deg) scale(1);
+  }
+}
+
+/* the panel around the canvas */
+.panel {
+  position: relative;
+  border: 1px solid var(--cr-line);
+  border-radius: 12px;
+  background: var(--cr-panel);
+  overflow: hidden;
+}
+
+.canvas {
+  display: block;
+  width: 100%;
+  height: var(--cr-canvas-h);
+  outline: none;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--cr-focus);
+}
+
+.live {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}

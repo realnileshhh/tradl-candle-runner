@@ -1,0 +1,75 @@
+/*
+ * Candle Runner's own tokens: the game's theming API (PRD section 5; the host can
+ * override any of them from its own stylesheet).
+ *
+ * Today they hold the values the game shipped with on 13 October 2026, read from
+ * the product's loading screen. Harmonising the game with the Tradl Design System
+ * means pointing each one at a design system token, e.g.
+ *   --cr-green: var(--ds-accent-secondary);
+ * `npm run lint` lists the tokens that still hold a colour of their own.
+ */
+:root {
+  /* ground and lines */
+  --cr-bg: #0a120e; /* page ground when standalone */
+  --cr-panel: rgba(255, 255, 255, 0.016); /* panel fill */
+  --cr-line: rgba(255, 255, 255, 0.08); /* panel and timer borders */
+  --cr-grid: #8aa89a; /* gridlines at 10%, price labels at 42% */
+
+  /* type */
+  --cr-fg: #ffffff; /* score figures, game over score */
+  --cr-fg-2: #d4d4d4; /* "GAME OVER" */
+  --cr-fg-3: #a3a3a3; /* witty line, timer, hints */
+  --cr-fg-4: #6b7a73; /* score strip labels */
+
+  /* candles */
+  --cr-green: #4fb37c; /* green candle body, signature, restart pill */
+  --cr-green-edge: #7ad3a0; /* green candle outline and wick */
+  --cr-green-deep: #37724e; /* brand green */
+  --cr-mint: #a9e5c3; /* "+1" puffs, restart pill text */
+  --cr-red: #dc5550; /* red candle body */
+  --cr-red-edge: #f2817b; /* red candle outline and wick */
+  --cr-neutral: #5f6d67; /* doji wall body */
+  --cr-neutral-edge: #8e9c96; /* doji wall outline */
+  --cr-hatch: #ffffff; /* doji wall hatching, at 16% */
+
+  /* accents */
+  --cr-gold: #e6c46a; /* jump flag, "NEW BEST" chip, bull's nose ring */
+  --cr-chip-ink: #2a2208; /* text on the gold chips */
+  --cr-amber: #d9a441; /* timer chip from 30 seconds */
+  --cr-amber-line: rgba(217, 164, 65, 0.35); /* its border */
+  --cr-focus: rgba(79, 179, 124, 0.55); /* canvas focus ring */
+  --cr-brand-ink: #ffffff; /* "tl" of the canvas mark, at 38% */
+
+  /* characters */
+  --cr-bull: #efe7d6;
+  --cr-bull-shade: #d4c6a6;
+  --cr-bull-ink: #1c201e;
+  --cr-horn: #d9c08a;
+  --cr-eye: #ffffff;
+  --cr-bear: #8a5a3b;
+  --cr-bear-light: #c99a74;
+  --cr-bear-ink: #2a1c14;
+  --cr-shadow: #000000; /* the bull's ground shadow, at 28% or less */
+
+  /* the rupee note in the score strip */
+  --cr-note-fill: #e6c46a;
+  --cr-note-ink: #9c7a2a;
+  --cr-note-light: #f4dfa3;
+  --cr-note-text: #6d4e12;
+
+  /* type and size */
+  --cr-font: var(--ds-font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --cr-canvas-h: 380px;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --cr-canvas-h: 300px;
+  }
+}
+
+@media (max-width: 600px) {
+  :root {
+    --cr-canvas-h: 230px;
+  }
+}

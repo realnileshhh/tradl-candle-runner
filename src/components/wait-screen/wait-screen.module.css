@@ -1,0 +1,208 @@
+/* The review page. Design system tokens only: colour, type, radius, spacing. */
+
+.page {
+  min-height: 100vh;
+  background: linear-gradient(
+    180deg,
+    var(--ds-gradient-background-primary-from),
+    var(--ds-gradient-background-primary-to)
+  );
+}
+
+/* the host's bar */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-gap-12);
+  padding: var(--ds-padding-12) var(--ds-padding-16);
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap-8);
+  margin: 0;
+  font: var(--ds-type-mobile-text-styles-heading-sm);
+  letter-spacing: var(--ds-type-mobile-text-styles-heading-sm-tracking);
+}
+
+.tag {
+  padding: var(--ds-padding-2) var(--ds-padding-8);
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-999);
+  color: var(--ds-text-tertiary);
+  font: var(--ds-type-mobile-text-styles-label-md);
+  letter-spacing: var(--ds-type-mobile-text-styles-label-md-tracking);
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-gap-8);
+}
+
+.button,
+.primary,
+.segment {
+  padding: var(--ds-padding-8) var(--ds-padding-12);
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-8);
+  background: var(--ds-background-surface);
+  color: var(--ds-text-primary);
+  font: var(--ds-type-mobile-text-styles-label-md);
+  letter-spacing: var(--ds-type-mobile-text-styles-label-md-tracking);
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled),
+.segment:hover {
+  background: var(--ds-interaction-hovering);
+}
+
+.primary {
+  border-color: transparent;
+  background: var(--ds-accent-primary);
+  color: var(--ds-text-default-same);
+}
+
+.button:disabled,
+.primary:disabled {
+  border-color: var(--ds-border-subtle);
+  background: transparent;
+  color: var(--ds-text-disabled);
+  cursor: default;
+}
+
+.button:focus-visible,
+.primary:focus-visible,
+.segment:focus-visible {
+  outline: 2px solid var(--ds-accent-secondary);
+  outline-offset: 2px;
+}
+
+.segmented {
+  display: flex;
+  gap: var(--ds-gap-2);
+  padding: var(--ds-padding-2);
+  border: 1px solid var(--ds-border-default);
+  border-radius: var(--ds-radius-8);
+}
+
+.segment {
+  border-color: transparent;
+  border-radius: var(--ds-radius-6);
+  background: transparent;
+  color: var(--ds-text-secondary);
+}
+
+.segment[aria-checked="true"] {
+  background: var(--ds-interaction-selected);
+  color: var(--ds-text-primary);
+}
+
+/* the chat column: 1,005 px wide in the product (PRD section 5) */
+.column {
+  max-width: 1005px;
+  margin: 0 auto;
+  padding: var(--ds-padding-32) var(--ds-padding-16) var(--ds-padding-24);
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-gap-8);
+  margin: 0 0 var(--ds-gap-16);
+  color: var(--ds-text-secondary);
+  font: var(--ds-type-mobile-text-styles-body-md);
+  letter-spacing: var(--ds-type-mobile-text-styles-body-md-tracking);
+}
+
+.step[data-status="ready"] {
+  color: var(--ds-text-primary);
+}
+
+.spinner {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ds-icon-tertiary);
+  animation: spin 1s linear infinite;
+}
+
+.check {
+  --icon-size: 16px;
+  color: var(--ds-icon-positive);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+}
+
+/* the events the game posted, newest first */
+.log {
+  max-width: 1005px;
+  margin: 0 auto;
+  padding: 0 var(--ds-padding-16) var(--ds-padding-32);
+}
+
+.logTitle {
+  margin: 0 0 var(--ds-gap-8);
+  color: var(--ds-text-tertiary);
+  font: var(--ds-type-mobile-text-styles-label-md);
+  letter-spacing: var(--ds-type-mobile-text-styles-label-md-tracking);
+}
+
+.list {
+  display: grid;
+  gap: var(--ds-gap-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--ds-type-mobile-text-styles-body-sm);
+  letter-spacing: var(--ds-type-mobile-text-styles-body-sm-tracking);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry {
+  display: flex;
+  gap: var(--ds-gap-8);
+  min-width: 0;
+}
+
+.at {
+  flex: none;
+  width: 48px;
+  color: var(--ds-text-tertiary);
+}
+
+.name {
+  flex: none;
+  color: var(--ds-accent-secondary);
+}
+
+.data {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--ds-text-secondary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

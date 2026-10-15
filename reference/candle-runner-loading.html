@@ -1,0 +1,830 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Candle Runner</title>
+<!--
+  Candle Runner: the waiting screen game for a running backtest.
+  One file, no dependencies. Mount it in an iframe or call CandleRunner.mount(element) inline.
+
+  Iframe integration
+    <iframe id="cr-frame" src="/candle-runner-loading.html" title="Candle Runner" style="border:0;width:100%;height:440px;background:transparent"></iframe>
+    The widget posts {source:'candle-runner', event:'size', height} whenever its height changes, so the host can size the iframe.
+    When the report lands:  frame.contentWindow.postMessage('cr:dismiss', '*');  then remove the frame after 750 ms.
+
+  Inline integration
+    const game = CandleRunner.mount(document.getElementById('slot'));
+    game.dismiss();   // when the report lands; resolves after the exit animation
+
+  Events posted to the parent window (and passed to opts.onEvent): ready, start, first-jump, game-over {score, cause, hazards}, new-best, copied, dismissed.
+  Query flags: timer=0 hides the waiting timer. embed=1 forces transparent page background (automatic inside an iframe).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+<style>
+  /* Tokens read from the product's loading screen: page ground, type greys, brand greens. */
+  :root{
+    --cr-bg:#0a120e;
+    --cr-panel:rgba(255,255,255,0.016);
+    --cr-line:rgba(255,255,255,0.08);
+    --cr-fg:#ffffff;
+    --cr-fg-2:#d4d4d4;
+    --cr-fg-3:#a3a3a3;
+    --cr-fg-4:#6b7a73;
+    --cr-grid:#8aa89a;
+    --cr-green:#4fb37c;
+    --cr-green-edge:#7ad3a0;
+    --cr-green-deep:#37724e;
+    --cr-mint:#a9e5c3;
+    --cr-red:#dc5550;
+    --cr-red-edge:#f2817b;
+    --cr-neutral:#5f6d67;
+    --cr-neutral-edge:#8e9c96;
+    --cr-gold:#e6c46a;
+    --cr-amber:#d9a441;
+    --cr-bull:#efe7d6;
+    --cr-bull-shade:#d4c6a6;
+    --cr-bull-ink:#1c201e;
+    --cr-horn:#d9c08a;
+    --cr-bear:#8a5a3b;
+    --cr-bear-light:#c99a74;
+    --cr-bear-ink:#2a1c14;
+    --cr-font:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --cr-canvas-h:380px;
+    color-scheme:dark;
+  }
+  @media (max-width:900px){ :root{ --cr-canvas-h:300px } }
+  @media (max-width:600px){ :root{ --cr-canvas-h:230px } }
+
+  html,body{ margin:0; padding:0; background:var(--cr-bg); }
+  body.cr-embed{ background:transparent; }
+  body{ font-family:var(--cr-font); -webkit-font-smoothing:antialiased; }
+
+  .cr{ position:relative; width:100%; color:var(--cr-fg-3); font-family:var(--cr-font);
+       user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent;
+       transition:opacity .45s ease, transform .45s ease; }
+  .cr.cr-exit{ opacity:0; transform:translateY(10px); pointer-events:none; }
+  @media (prefers-reduced-motion:reduce){ .cr{ transition:opacity .2s ease; } .cr.cr-exit{ transform:none; } }
+
+  .cr-skip{ position:absolute; left:-9999px; top:0; width:1px; height:1px; overflow:hidden; }
+  .cr-skip:focus{ left:0; top:0; width:auto; height:auto; z-index:5; padding:4px 10px; border-radius:8px;
+    background:var(--cr-bg); color:var(--cr-mint); font-size:13px; text-decoration:none; outline:1px solid var(--cr-line); }
+
+  .cr-top{ display:flex; justify-content:space-between; align-items:center; gap:12px; min-height:24px;
+    font-size:14px; line-height:20px; }
+  .cr-wit{ min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--cr-fg-3);
+    opacity:0; transition:opacity .4s ease; }
+  .cr-wit.show{ opacity:1; }
+  .cr-sig{ color:var(--cr-green); font-weight:600; margin-left:6px; letter-spacing:-0.02em; }
+  .cr-timer{ display:inline-flex; align-items:center; gap:6px; flex:none; font-size:13px; line-height:18px;
+    color:var(--cr-fg-3); border:1px solid var(--cr-line); border-radius:999px; padding:2px 10px 2px 8px;
+    white-space:nowrap; font-variant-numeric:tabular-nums; transition:color .3s ease, border-color .3s ease; }
+  .cr-timer svg{ width:12px; height:12px; display:block; }
+  .cr-timer.hot{ color:var(--cr-amber); border-color:rgba(217,164,65,0.35); }
+  .cr-timer-wit{ color:inherit; opacity:.85; }
+  .cr-timer-wit:empty{ display:none; }
+
+  .cr-hud{ display:flex; justify-content:space-between; align-items:center; margin:6px 0 8px;
+    font-size:12px; line-height:18px; letter-spacing:.08em; text-transform:uppercase; color:var(--cr-fg-4); }
+  .cr-hud b{ font-weight:600; font-size:14px; letter-spacing:.04em; color:var(--cr-fg); margin-left:6px;
+    font-variant-numeric:tabular-nums; }
+  .cr-score{ display:inline-flex; align-items:center; gap:10px; }
+  .cr-note{ display:inline-flex; transform:rotate(-4deg); transform-origin:center; }
+  .cr-note svg{ display:block; width:22px; height:13px; }
+  .cr-note.pulse{ animation:crPulse .6s ease; }
+  @keyframes crPulse{ 0%{transform:rotate(-4deg) scale(1)} 35%{transform:rotate(-12deg) scale(1.35)} 70%{transform:rotate(-2deg) scale(.94)} 100%{transform:rotate(-4deg) scale(1)} }
+
+  .cr-panel{ position:relative; border:1px solid var(--cr-line); border-radius:12px; background:var(--cr-panel); overflow:hidden; }
+  .cr-canvas{ display:block; width:100%; height:var(--cr-canvas-h); outline:none; cursor:pointer; touch-action:manipulation; }
+  .cr-canvas:focus-visible{ box-shadow:inset 0 0 0 2px rgba(79,179,124,0.55); }
+  .cr-live{ position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+</style>
+</head>
+<body>
+<div id="cr-root"></div>
+
+<script>
+window.CandleRunner = (function () {
+  'use strict';
+
+  /* ---------- constants: physics is the single source of truth for fairness ---------- */
+  var CANDLE_W = 22, SLOT = 38, PPU = 21;            // candle body width, slot pitch, pixels per price unit
+  var JUMP_V = -10.2, GRAV = 0.46;                   // px per frame, px per frame squared (60 fps frame)
+  var AIR_FRAMES = 2 * (-JUMP_V) / GRAV;             // 44.3 frames in the air
+  var APEX = (JUMP_V * JUMP_V) / (2 * GRAV);         // 113 px
+  var SPEED0 = 2.8, SPEED_MAX = 7.0, ACCEL = 0.0014; // px per frame; +0.0014 per frame reaches max in about 50 s
+  var BUFFER_MS = 150, COYOTE_MS = 100;
+  var LOOKAHEAD = 6;                                  // candles fully inked ahead of the bull
+  var BOX_L = -16, BOX_R = 24, BOX_H = 30;            // bull hit box around its centre x and feet y
+  var STEP_MAX_PX = 36;                               // tallest green step the bull walks up
+  var RESTART_MS = 2600;
+  var MAX_RISE_U = 1.55, WALL_MIN_SPEED = 3.0, DOUBLE_MIN_SPEED = 3.6, TRIPLE_MIN_SPEED = 4.6;
+  var FIRST_HAZARD_SLOTS = 20;                        // about five seconds of running at start speed
+
+  var WIT = [
+    'Replaying four years of candles. Jump the red ones.',
+    'The backtest is running. So is the bull.',
+    'Wicks never hurt anyone. Bodies do.',
+    'Patience is also a position.',
+    'Every red candle you clear is one your strategy did not have to.'
+  ];
+  var OVER = {
+    red:  ['Stop-loss hit. Ego intact.', 'Red candle one, bull nil.'],
+    gap:  ['Gap got you. Mind the gap.', 'Fell through the gap. Indices do it too.'],
+    fall: ['Ran out of chart.', 'No candle under you. Happens.'],
+    wall: ['Doji wall. Indecision kills.', 'Walked straight into indecision.'],
+    bear: ['A bear? In this market?', 'The bear was not a drill.']
+  };
+  var TIMER_WIT = [[90, 'thick order book, this one'], [30, 'still cheaper than a brokerage call']];
+
+  function clamp(v, a, b) { return v < a ? a : v > b ? b : v; }
+  function pad5(n) { n = Math.max(0, Math.floor(n)); return (n < 100000 ? ('0000' + n).slice(-5) : String(n)); }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function rr(ctx, x, y, w, h, r) {
+    if (ctx.roundRect) { ctx.roundRect(x, y, w, h, r); return; }
+    var k = Math.min(r, w / 2, h / 2);
+    ctx.moveTo(x + k, y); ctx.arcTo(x + w, y, x + w, y + h, k); ctx.arcTo(x + w, y + h, x, y + h, k);
+    ctx.arcTo(x, y + h, x, y, k); ctx.arcTo(x, y, x + w, y, k); ctx.closePath();
+  }
+  function hex2rgb(h) {
+    h = h.trim();
+    if (h[0] === '#') {
+      if (h.length === 4) h = '#' + h[1] + h[1] + h[2] + h[2] + h[3] + h[3];
+      return [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+    }
+    var m = h.match(/[\d.]+/g); return m ? [+m[0], +m[1], +m[2]] : [255, 255, 255];
+  }
+  function rgba(rgb, a) { return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')'; }
+
+  var NOTE_SVG = '<svg viewBox="0 0 30 18" aria-hidden="true"><rect x="1" y="1.5" width="28" height="15" rx="2.5" fill="#e6c46a" stroke="#9c7a2a" stroke-width="1.2"/>' +
+    '<rect x="4" y="4.5" width="22" height="9" rx="1" fill="none" stroke="#9c7a2a" stroke-width=".8" opacity=".6"/>' +
+    '<circle cx="15" cy="9" r="4" fill="#f4dfa3" stroke="#9c7a2a" stroke-width=".9"/>' +
+    '<text x="15" y="12" text-anchor="middle" font-size="7.5" font-weight="700" fill="#6d4e12" font-family="Inter,system-ui,sans-serif">&#8377;</text></svg>';
+  var CLOCK_SVG = '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6.5" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/><path d="M6 4v2.6l1.8 1.1M4.4 1.2h3.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
+
+  /* =================================================================== */
+  function mount(host, opts) {
+    opts = opts || {};
+    var doc = host.ownerDocument, win = doc.defaultView;
+    var inFrame = (function () { try { return win.self !== win.top; } catch (e) { return true; } })();
+    var params = new URLSearchParams(win.location.search);
+    var showTimer = opts.timer !== false && params.get('timer') !== '0';
+    var keyScope = opts.keys || (inFrame ? 'window' : 'canvas');
+    var RM = !!(win.matchMedia && win.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    var storageKey = opts.storageKey || 'cr-hi';
+    var coarse = !!(win.matchMedia && win.matchMedia('(pointer: coarse)').matches);
+
+    /* ---------- DOM ---------- */
+    host.innerHTML =
+      '<div class="cr" tabindex="-1">' +
+        '<a class="cr-skip" href="#">Skip the game</a>' +
+        '<div class="cr-top">' +
+          '<span class="cr-wit"><span class="cr-wit-text"></span><span class="cr-sig">tl/.</span></span>' +
+          '<span class="cr-timer"' + (showTimer ? '' : ' hidden') + '>' + CLOCK_SVG + '<b class="cr-clock">0:00</b><span class="cr-timer-wit"></span></span>' +
+        '</div>' +
+        '<div class="cr-hud">' +
+          '<span class="cr-hi">Hi<b>00000</b></span>' +
+          '<span class="cr-score"><span class="cr-note" aria-hidden="true">' + NOTE_SVG + '</span><span>Score<b>00000</b></span></span>' +
+        '</div>' +
+        '<div class="cr-panel">' +
+          '<canvas class="cr-canvas" tabindex="0" role="img" aria-label="Candle Runner. A bull runs along a candlestick chart while your backtest loads. Tap, click, or press space to jump over red candles, gaps, doji walls and bears."></canvas>' +
+          '<div class="cr-live" aria-live="polite"></div>' +
+        '</div>' +
+      '</div>';
+    var root = host.querySelector('.cr');
+    var canvas = root.querySelector('.cr-canvas');
+    var ctx = canvas.getContext('2d', { alpha: true });
+    var witEl = root.querySelector('.cr-wit'), witText = root.querySelector('.cr-wit-text');
+    var timerEl = root.querySelector('.cr-timer'), clockEl = root.querySelector('.cr-clock'), timerWit = root.querySelector('.cr-timer-wit');
+    var hiEl = root.querySelector('.cr-hi b'), scoreEl = root.querySelector('.cr-score b'), noteEl = root.querySelector('.cr-note');
+    var liveEl = root.querySelector('.cr-live');
+
+    /* ---------- palette from CSS tokens, so the host can theme it ---------- */
+    var cs = win.getComputedStyle(root);
+    function tok(name, fb) { var v = cs.getPropertyValue(name); return v ? v.trim() : fb; }
+    var P = {
+      grid: hex2rgb(tok('--cr-grid', '#8aa89a')),
+      fg: tok('--cr-fg', '#ffffff'), fg2: tok('--cr-fg-2', '#d4d4d4'), fg3: tok('--cr-fg-3', '#a3a3a3'), fg4: tok('--cr-fg-4', '#6b7a73'),
+      green: tok('--cr-green', '#4fb37c'), greenEdge: tok('--cr-green-edge', '#7ad3a0'), greenRGB: hex2rgb(tok('--cr-green', '#4fb37c')),
+      red: tok('--cr-red', '#dc5550'), redEdge: tok('--cr-red-edge', '#f2817b'), redRGB: hex2rgb(tok('--cr-red', '#dc5550')),
+      neutral: tok('--cr-neutral', '#5f6d67'), neutralEdge: tok('--cr-neutral-edge', '#8e9c96'), neutralRGB: hex2rgb(tok('--cr-neutral', '#5f6d67')),
+      gold: tok('--cr-gold', '#e6c46a'), mint: tok('--cr-mint', '#a9e5c3'),
+      bull: tok('--cr-bull', '#efe7d6'), bullShade: tok('--cr-bull-shade', '#d4c6a6'), ink: tok('--cr-bull-ink', '#1c201e'), horn: tok('--cr-horn', '#d9c08a'),
+      bear: tok('--cr-bear', '#8a5a3b'), bearLight: tok('--cr-bear-light', '#c99a74'), bearInk: tok('--cr-bear-ink', '#2a1c14'),
+      bgRGB: hex2rgb(tok('--cr-bg', '#0a120e')),
+      font: tok('--cr-font', 'Inter, system-ui, sans-serif')
+    };
+    function font(w, px) { return w + ' ' + px + 'px ' + P.font; }
+
+    /* ---------- canvas size (DPR crisp, fluid width) ---------- */
+    var W = 720, H = 380, DPR = 1, BULL_CX = 142;
+    function resize() {
+      var cw = canvas.clientWidth || 720, ch = canvas.clientHeight || 380;
+      DPR = Math.min(2, win.devicePixelRatio || 1);
+      W = cw; H = ch;
+      canvas.width = Math.round(cw * DPR); canvas.height = Math.round(ch * DPR);
+      BULL_CX = cw < 520 ? 92 : 142;
+      if (bullP != null) camHi = camTarget();
+    }
+
+    /* ---------- state ---------- */
+    var seed = 1;
+    function rnd() { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; var t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+    function rb(a, b) { return a + rnd() * (b - a); }
+
+    var candles, gen, speed, distance, score, hi = 0, hiAtStart = 0;
+    var bullP, velY, grounded, canCoyote, lastGroundedAt, bufferedAt, fellFrom, anim, lean;
+    var camHi = 0, phase = 'intro', introT = 0, startedAt = 0, overAt = 0, overCause = 'red', overLine = '', overScore = 0, isNewBest = false;
+    var puffs = [], dodged = 0, jumps = 0, runs = 0, flagShown = false, dismissed = false, destroyed = false;
+    var restartTimer = 0, witTimer = 0, clockTimer = 0, timerTier = -1, waitStart = performance.now();
+    try { hi = +win.localStorage.getItem(storageKey) || 0; } catch (e) { hi = 0; }
+
+    function topU(c) { return c.kind === 'up' ? Math.max(c.o, c.c) : Math.max(c.o, c.c); }
+    function botU(c) { return Math.min(c.o, c.c); }
+    function yOf(p) { return (camHi - p) * PPU; }
+    function camTarget() { return bullP + (0.6 * H) / PPU; }
+    function jumpRangePx() { return AIR_FRAMES * speed; }
+    function runwayCount() { return Math.max(3, Math.ceil((jumpRangePx() + 40) / SLOT)); }
+
+    /* ---------- spawner: the chart is the level ---------- */
+    function greenAt(x, topTarget, body, jitter) {
+      var c = topTarget + (jitter ? rb(-jitter, jitter) : 0);
+      var o = c - body;
+      return { x: x, o: o, c: c, h: c + rb(0.15, 0.7), l: o - rb(0.15, 0.7), kind: 'up', gapAfter: 0, bear: false, scored: false, id: ++uid };
+    }
+    var uid = 0;
+    function pickMood() {
+      var r = rnd(), m;
+      if (r < 0.34) m = 'up'; else if (r < 0.62) m = 'down'; else m = 'chop';
+      if (m === gen.mood && rnd() < 0.7) m = (m === 'chop') ? (rnd() < 0.5 ? 'up' : 'down') : 'chop';
+      gen.mood = m; gen.moodLeft = m === 'chop' ? 4 + Math.floor(rnd() * 5) : 3 + Math.floor(rnd() * 4); gen.anchor = gen.price;
+    }
+    function spawnGreen(x) {
+      var p = gen.price, c;
+      if (gen.mood === 'up') {
+        var body = rb(0.8, 1.5), gapDown = rb(0, 0.2);
+        var o = p - gapDown, cl = Math.min(o + body, p + MAX_RISE_U);
+        c = { x: x, o: o, c: cl, h: cl + rb(0.1, 0.5), l: o - rb(0.2, 0.8), kind: 'up', gapAfter: 0, bear: false, scored: false, id: ++uid };
+      } else if (gen.mood === 'down') {
+        var o2 = p - rb(1.0, 1.7), b2 = rb(0.3, 0.7);
+        c = { x: x, o: o2, c: o2 + b2, h: o2 + b2 + rb(0.2, 0.8), l: o2 - rb(0.2, 0.9), kind: 'up', gapAfter: 0, bear: false, scored: false, id: ++uid };
+      } else {
+        c = greenAt(x, gen.anchor, rb(0.3, 0.8), 0.45);
+      }
+      gen.price = c.c; gen.moodLeft--;
+      return c;
+    }
+    function hazardRoll(x) {
+      if (gen.hazardCount === 0) {
+        var minX = BULL_CX + FIRST_HAZARD_SLOTS * SLOT;
+        if (x < minX) return false;
+        return x >= minX + 2 * SLOT || rnd() < 0.5;
+      }
+      if (gen.sinceHazard < gen.extra) return false;
+      var ramp = clamp((speed - SPEED0) / (SPEED_MAX - SPEED0), 0, 1);
+      return rnd() < 0.5 + 0.3 * ramp;
+    }
+    function spawnHazard(x, last) {
+      var T = gen.price, kind, c;
+      if (!gen.firstRed) kind = 'red';
+      else {
+        var ramp0 = clamp((speed - SPEED0) / (SPEED_MAX - SPEED0), 0, 1);
+        var r = rnd(), wWall = (speed >= WALL_MIN_SPEED && gen.mood !== 'up') ? 0.14 + 0.1 * ramp0 : 0, wGap = last ? 0.22 : 0, wBear = 0.18, wRed = 0.44;
+        var tot = wRed + wGap + wWall + wBear; r *= tot;
+        kind = r < wRed ? 'red' : r < wRed + wGap ? 'gap' : r < wRed + wGap + wWall ? 'wall' : 'bear';
+      }
+      if (kind === 'red') {
+        var n = 1;
+        if (gen.firstRed) { if (speed >= TRIPLE_MIN_SPEED && rnd() < 0.3) n = 3; else if (speed >= DOUBLE_MIN_SPEED && rnd() < 0.42) n = 2; }
+        for (var k = 0; k < n; k++) {
+          var o = T + rb(1.0, 1.6) - k * 0.15, cl = T - rb(0.2, 0.5);
+          c = { x: x + k * SLOT, o: o, c: cl, h: o + rb(0.3, 0.8), l: cl - rb(0.2, 0.6), kind: 'red', gapAfter: 0, bear: false, scored: false, id: ++uid, first: !gen.firstRed && k === 0, streak: n };
+          if (k < n - 1) candles.push(c);
+        }
+        gen.firstRed = true;
+      } else if (kind === 'wall') {
+        var top = T + rb(1.8, 2.4), bot = T - 0.1;
+        c = { x: x, o: top, c: bot, h: top + rb(0.4, 0.9), l: bot - rb(0.3, 0.6), kind: 'wall', gapAfter: 0, bear: false, scored: false, id: ++uid };
+      } else if (kind === 'bear') {
+        c = greenAt(x, T, rb(0.4, 0.8), 0.15); c.bear = true; c.bearPhase = rnd() * 6.28;
+      } else {
+        last.gapAfter = Math.round(rb(36, clamp(jumpRangePx() - 70, 56, 104)));
+        c = greenAt(x + last.gapAfter, T, rb(0.3, 0.6), 0.15);
+      }
+      gen.hold = T; gen.debt = runwayCount(); gen.sinceHazard = 0; gen.extra = Math.floor(rnd() * 3);
+      gen.hazardCount++; gen.price = c.c; gen.anchor = c.c; gen.mood = 'chop'; gen.moodLeft = 2;
+      candles.push(c);
+      return c;
+    }
+    function approachIsFlat() {
+      var need = speed > 4.5 ? 3 : 2, n = candles.length;
+      if (n < need) return true;
+      var ref = topU(candles[n - 1]);
+      for (var i = n - need; i < n; i++) { var c = candles[i]; if (c.kind !== 'up' || c.bear || c.gapAfter || Math.abs(topU(c) - ref) > 0.35) return false; }
+      return true;
+    }
+    function spawnNext() {
+      var last = candles.length ? candles[candles.length - 1] : null;
+      var x = last ? last.x + SLOT + last.gapAfter : BULL_CX - 2 * SLOT;
+      var c;
+      if (gen.debt > 0) { c = greenAt(x, gen.hold, rb(0.25, 0.6), 0.2); gen.debt--; gen.sinceHazard++; gen.price = c.c; gen.anchor = c.c; }
+      else if (hazardRoll(x)) {
+        if (approachIsFlat()) { spawnHazard(x, last); return candles[candles.length - 1]; }
+        else { c = greenAt(x, topU(last), rb(0.3, 0.6), 0.1); gen.price = c.c; gen.anchor = c.c; gen.sinceHazard++; gen.mood = 'chop'; if (gen.moodLeft < 1) gen.moodLeft = 1; }
+      }
+      else { if (gen.moodLeft <= 0) pickMood(); c = spawnGreen(x); gen.sinceHazard++; }
+      candles.push(c);
+      return c;
+    }
+
+    function reset() {
+      seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) | 0;
+      candles = []; uid = 0;
+      gen = { price: 100, mood: 'chop', moodLeft: 3, anchor: 100, debt: 0, hold: 100, sinceHazard: 0, hazardCount: 0, firstRed: false, extra: 2 };
+      speed = SPEED0; distance = 0; score = 0; anim = 0; lean = 0;
+      velY = 0; grounded = true; canCoyote = false; bufferedAt = -1e9; fellFrom = null;
+      puffs = []; dodged = 0; flagShown = false;
+      startedAt = performance.now(); lastGroundedAt = startedAt;
+      while (candles.length < 3 || candles[candles.length - 1].x < W + 3 * SLOT) spawnNext();
+      bullP = topU(supportAt(BULL_CX) || candles[2]);
+      camHi = camTarget(); hiAtStart = hi;
+      paintScore(true);
+    }
+    function paintScore(force) {
+      if (force || scoreEl._v !== score) { scoreEl.textContent = pad5(score); scoreEl._v = score; }
+      if (force || hiEl._v !== hi) { hiEl.textContent = pad5(hi); hiEl._v = hi; }
+    }
+
+    /* ---------- support and collisions ---------- */
+    function supportAt(cx) {
+      for (var i = 0; i < candles.length; i++) {
+        var c = candles[i];
+        if (cx >= c.x - SLOT / 2 && cx < c.x + SLOT / 2) return c.kind === 'up' ? c : null;
+      }
+      return null;
+    }
+    function nextHazard() {
+      var fx = BULL_CX + BOX_R, best = null, bd = 1e9;
+      for (var i = 0; i < candles.length; i++) {
+        var c = candles[i], d, k;
+        var wdt = CANDLE_W;
+        if (c.kind === 'red' || c.kind === 'wall') { d = c.x - CANDLE_W / 2 - fx; k = c.kind; if (c.kind === 'red') { var j = i; while (candles[j + 1] && candles[j + 1].kind === 'red') { j++; } wdt = CANDLE_W + (j - i) * SLOT; d = candles[i].x - CANDLE_W / 2 - fx; if (i > 0 && candles[i - 1].kind === 'red') continue; } }
+        else if (c.bear) { d = c.x - 13 - fx; k = 'bear'; }
+        else if (c.gapAfter) { d = c.x + SLOT / 2 - BULL_CX; k = 'gap'; }
+        else continue;
+        if (d > -SLOT && d < bd) { bd = d; best = { kind: k, dist: Math.round(d), x: c.x, width: wdt, topPx: Math.round(yOf(topU(c))) }; }
+      }
+      return best;
+    }
+
+    /* ---------- the step ---------- */
+    function step(now, dt) {
+      speed = Math.min(SPEED_MAX, speed + ACCEL * dt);
+      var dx = speed * dt;
+      distance += dx; anim += dx;
+      for (var i = 0; i < candles.length; i++) candles[i].x -= dx;
+      while (candles.length > 2 && candles[0].x < -3 * SLOT - candles[0].gapAfter) candles.shift();
+      while (candles[candles.length - 1].x < W + 3 * SLOT) spawnNext();
+
+      var s2 = Math.floor(distance / 12);
+      if (s2 !== score) {
+        score = s2;
+        if (score > hi) { var wasBest = hi > hiAtStart; hi = score; try { win.localStorage.setItem(storageKey, String(hi)); } catch (e) {}
+          if (!wasBest && hiAtStart > 0) { pulseNote(); emit('new-best', { score: score }); } }
+        paintScore(false);
+      }
+
+      var sup = supportAt(BULL_CX);
+      if (now - bufferedAt <= BUFFER_MS && (grounded || (canCoyote && now - lastGroundedAt <= COYOTE_MS))) {
+        velY = JUMP_V; grounded = false; canCoyote = false; bufferedAt = -1e9; jumps++;
+        if (jumps === 1) emit('first-jump', {});
+      }
+      if (grounded) {
+        if (!sup) { grounded = false; velY = 0; canCoyote = true; fellFrom = lastSupRef; }
+        else {
+          var t = topU(sup);
+          if (t > bullP + 0.02) bullP = t;                                  // step up: climb
+          else if (t < bullP - 0.02) { grounded = false; velY = 0; canCoyote = true; fellFrom = sup; }  // step down: short drop
+          lastGroundedAt = now;
+        }
+      }
+      if (!grounded) {
+        var prevP = bullP;
+        bullP -= (velY * dt) / PPU; velY += GRAV * dt;
+        if (sup) {
+          var tt = topU(sup);
+          if (velY >= 0 && bullP <= tt && prevP >= tt - 1e-6) { land(sup, now); }
+          else if (velY >= 0 && bullP < tt && (tt - bullP) * PPU <= STEP_MAX_PX) { land(sup, now); }
+        }
+        if (yOf(bullP) - BOX_H > H + 24) return die(fellFrom && fellFrom.gapAfter ? 'gap' : 'fall');
+      }
+      if (sup) lastSupRef = sup;
+
+      // hazards: body contact kills, wicks are harmless
+      var fy = yOf(bullP), bl = BULL_CX + BOX_L, br = BULL_CX + BOX_R, bt = fy - BOX_H, bb = fy - 1;
+      for (i = 0; i < candles.length; i++) {
+        var c = candles[i];
+        if (!c.scored && (c.kind !== 'up' || c.bear || c.gapAfter) && c.x + SLOT / 2 + c.gapAfter < BULL_CX + BOX_L) { c.scored = true; dodged++; puffs.push({ x: BULL_CX + 4, y: fy - BOX_H - 6, t: 0 }); }
+        if (c.x < BULL_CX - 90 || c.x > BULL_CX + 90) continue;
+        if (c.kind === 'red' || c.kind === 'wall') {
+          var hl = c.x - CANDLE_W / 2 + 2, hr = c.x + CANDLE_W / 2 - 2, ht = yOf(topU(c)) + 1, hb = yOf(botU(c));
+          if (br > hl && bl < hr && bb > ht && bt < hb) return die(c.kind);
+        } else if (c.bear) {
+          var gy = yOf(topU(c));
+          if (br > c.x - 13 && bl < c.x + 13 && bb > gy - 30 && bt < gy) return die('bear');
+        }
+      }
+      if (!flagShown) for (i = 0; i < candles.length; i++) if (candles[i].first && candles[i].x < W - 60) { flagShown = true; break; }
+
+      if (grounded) camHi += (camTarget() - camHi) * Math.min(1, 0.08 * dt);
+      var tl = speed > 4.5 ? 0.08 : 0; lean += (tl - lean) * Math.min(1, 0.1 * dt);
+
+      for (i = puffs.length - 1; i >= 0; i--) { puffs[i].t += dt / 60; puffs[i].y -= 0.7 * dt; if (puffs[i].t > 0.8) puffs.splice(i, 1); }
+    }
+    var lastSupRef = null;
+    function land(c, now) { bullP = topU(c); grounded = true; velY = 0; canCoyote = false; lastGroundedAt = now; }
+
+    function die(cause) {
+      phase = 'over'; overAt = performance.now(); overCause = cause; overScore = score;
+      isNewBest = hiAtStart > 0 && overScore > hiAtStart;
+      overLine = pick(OVER[cause] || OVER.red);
+      liveEl.textContent = 'Game over. Score ' + overScore + '. ' + overLine;
+      emit('game-over', { score: overScore, cause: cause, hazards: dodged, seconds: Math.round((overAt - startedAt) / 1000) });
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(function () { if (!dismissed && !destroyed && phase === 'over') restart(); }, RESTART_MS);
+    }
+    function restart() {
+      clearTimeout(restartTimer); runs++;
+      phase = 'intro'; introT = RM ? 99 : 0.35; reset();
+      emit('start', { run: runs });
+    }
+
+    /* ---------- drawing ---------- */
+    function drawCandle(c, inkK, tNow) {
+      var xi = Math.round(c.x), col, edge, rgb;
+      if (c.kind === 'red') { col = P.red; edge = P.redEdge; rgb = P.redRGB; }
+      else if (c.kind === 'wall') { col = P.neutral; edge = P.neutralEdge; rgb = P.neutralRGB; }
+      else { col = P.green; edge = P.greenEdge; rgb = P.greenRGB; }
+      var yH = Math.round(yOf(c.h)), yL = Math.round(yOf(c.l)), yT = Math.round(yOf(topU(c))), yB = Math.round(yOf(botU(c)));
+      var bh = Math.max(3, yB - yT);
+      var ghost = 1 - inkK;
+      if (ghost > 0) {
+        ctx.globalAlpha = 0.26 * ghost;
+        ctx.fillStyle = col; ctx.fillRect(xi - 1, yH, 2, Math.max(1, yL - yH));
+        ctx.strokeStyle = col; ctx.lineWidth = 1; ctx.strokeRect(xi - CANDLE_W / 2 + 0.5, yT + 0.5, CANDLE_W - 1, bh - 1);
+      }
+      if (inkK > 0) {
+        ctx.globalAlpha = inkK;
+        ctx.fillStyle = edge; ctx.fillRect(xi - 1, yH, 2, Math.max(1, yL - yH));
+        ctx.fillStyle = col; ctx.fillRect(xi - CANDLE_W / 2, yT, CANDLE_W, bh);
+        if (c.kind === 'wall') {
+          ctx.save(); ctx.beginPath(); ctx.rect(xi - CANDLE_W / 2, yT, CANDLE_W, bh); ctx.clip();
+          ctx.strokeStyle = rgba([255, 255, 255], 0.16); ctx.lineWidth = 1.5; ctx.beginPath();
+          for (var k = -bh; k < CANDLE_W + 2; k += 6) { ctx.moveTo(xi - CANDLE_W / 2 + k, yT + bh); ctx.lineTo(xi - CANDLE_W / 2 + k + bh, yT); }
+          ctx.stroke(); ctx.restore();
+        }
+        ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.globalAlpha = inkK * 0.9;
+        ctx.strokeRect(xi - CANDLE_W / 2 + 0.5, yT + 0.5, CANDLE_W - 1, bh - 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+    function drawGapMarker(c, next, inkK) {
+      var y = Math.round(yOf(topU(c))) + 0.5, x0 = Math.round(c.x + CANDLE_W / 2) + 3, x1 = Math.round(next.x - CANDLE_W / 2) - 3;
+      ctx.globalAlpha = 0.25 + 0.3 * inkK;
+      ctx.strokeStyle = rgba(P.grid, 1); ctx.lineWidth = 1; ctx.setLineDash([3, 4]);
+      ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1, y); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x0 + 0.5, y - 4); ctx.lineTo(x0 + 0.5, y + 4); ctx.moveTo(x1 - 0.5, y - 4); ctx.lineTo(x1 - 0.5, y + 4); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+
+    /* the bull: charging posture, feet at (0,0), facing right */
+    function drawBull(x, y, pose, a, tilt, alpha) {
+      ctx.save();
+      ctx.globalAlpha = alpha == null ? 1 : alpha;
+      ctx.translate(x, y);
+      if (tilt) ctx.rotate(tilt);
+      var ph = a * 0.3, run = pose === 'run';
+      var bob = run ? Math.abs(Math.sin(ph)) * 1.5 : 0;
+      ctx.translate(0, -bob);
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+
+      function leg(bx, swing, lift, colr) {
+        ctx.strokeStyle = P.ink; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(bx, -13); ctx.lineTo(bx + swing, -lift); ctx.stroke();
+        ctx.strokeStyle = colr; ctx.lineWidth = 4.6; ctx.beginPath(); ctx.moveTo(bx, -13); ctx.lineTo(bx + swing, -lift); ctx.stroke();
+        ctx.fillStyle = P.ink; ctx.beginPath(); rr(ctx, bx + swing - 3.6, -lift - 2.4, 7.2, 3.4, 1.4); ctx.fill();
+      }
+      var s1 = Math.sin(ph), s2 = Math.sin(ph + Math.PI);
+      var l1 = Math.max(0, Math.cos(ph)) * 3, l2 = Math.max(0, Math.cos(ph + Math.PI)) * 3;
+      if (run) { leg(-13, s2 * 6, l2, P.bullShade); leg(5, s1 * 6, l1, P.bullShade); leg(-8, s1 * 6, l1, P.bull); leg(10, s2 * 6, l2, P.bull); }
+      else if (pose === 'jump') { leg(-13, -5, 5, P.bullShade); leg(5, 6, 4, P.bullShade); leg(-8, -4, 4, P.bull); leg(10, 7, 3, P.bull); }
+      else { leg(-13, 0, 0, P.bullShade); leg(5, 0, 0, P.bullShade); leg(-8, 0, 0, P.bull); leg(10, 0, 0, P.bull); }
+
+      // tail, raised
+      var wag = Math.sin(a * 0.2) * 2;
+      function tailPath() { ctx.beginPath(); ctx.moveTo(-20, -24); ctx.quadraticCurveTo(-27, -29 + wag, -24, -36 + wag); }
+      ctx.strokeStyle = P.ink; ctx.lineWidth = 4.4; tailPath(); ctx.stroke();
+      ctx.strokeStyle = P.bullShade; ctx.lineWidth = 2.2; tailPath(); ctx.stroke();
+      ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(-24, -37 + wag, 2.8, 0, 6.3); ctx.fill();
+
+      function horn(x0, y0, cx, cy, x1, y1) {
+        ctx.strokeStyle = P.ink; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, x1, y1); ctx.stroke();
+        ctx.strokeStyle = P.horn; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(cx, cy, x1, y1); ctx.stroke();
+      }
+      // body with shoulder hump
+      ctx.fillStyle = P.bull; ctx.strokeStyle = P.ink; ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(-16, -10);
+      ctx.quadraticCurveTo(-24, -12, -23, -21);
+      ctx.quadraticCurveTo(-22, -29, -13, -30);
+      ctx.quadraticCurveTo(-5, -31, 1, -34);
+      ctx.quadraticCurveTo(10, -38, 16, -31);
+      ctx.quadraticCurveTo(19, -26, 17, -17);
+      ctx.quadraticCurveTo(15, -9, 6, -9);
+      ctx.lineTo(-9, -9);
+      ctx.quadraticCurveTo(-14, -9, -16, -10);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.bullShade; ctx.beginPath(); ctx.ellipse(-4, -12, 10, 2.8, 0, 0, 6.3); ctx.fill();
+      horn(17, -28, 11, -33, 13, -40);
+
+      // head, low and forward
+      ctx.fillStyle = P.bull; ctx.strokeStyle = P.ink; ctx.lineWidth = 2;
+      ctx.beginPath(); rr(ctx, 13, -27, 19, 17, 6); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.bullShade; ctx.beginPath(); rr(ctx, 22, -19, 11.5, 9.5, 4); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(29.5, -14.5, 1.2, 0, 6.3); ctx.fill();
+      ctx.strokeStyle = P.gold; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(32, -10, 2.4, -0.3, 3.4); ctx.stroke();
+      horn(23, -27, 29, -29, 29, -37);
+      ctx.fillStyle = P.bullShade; ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.ellipse(16, -25, 3.4, 2.1, -0.6, 0, 6.3); ctx.fill(); ctx.stroke();
+      var wide = pose === 'crash';
+      ctx.fillStyle = '#ffffff'; ctx.strokeStyle = P.ink; ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.arc(21, -20.5, wide ? 3.3 : 2.6, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.ink; ctx.beginPath(); ctx.arc(21.9, -20.2, wide ? 1 : 1.4, 0, 6.3); ctx.fill();
+      if (!wide) { ctx.strokeStyle = P.ink; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(18, -24.5); ctx.lineTo(24, -23.5); ctx.stroke(); }
+      ctx.restore();
+    }
+
+    /* the bear: round, brown, facing the bull, feet at (0,0) */
+    function drawBear(x, y, t, alpha) {
+      ctx.save(); ctx.globalAlpha = alpha == null ? 1 : alpha; ctx.translate(x, y); ctx.scale(1.1, 1.1);
+      var breathe = RM ? 0 : Math.sin(t) * 0.6;
+      ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 2; ctx.strokeStyle = P.bearInk;
+      // feet
+      ctx.fillStyle = P.bearInk; ctx.beginPath(); rr(ctx, -10, -3.5, 8, 4, 1.5); rr(ctx, 1, -3.5, 8, 4, 1.5); ctx.fill();
+      // body
+      ctx.fillStyle = P.bear; ctx.beginPath(); rr(ctx, -12, -23 - breathe, 24, 22 + breathe, 10); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.bearLight; ctx.globalAlpha *= 0.85; ctx.beginPath(); ctx.ellipse(1, -11, 6, 7, 0, 0, 6.3); ctx.fill(); ctx.globalAlpha = alpha == null ? 1 : alpha;
+      // arm reaching forward (left)
+      ctx.strokeStyle = P.bearInk; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(-6, -14); ctx.lineTo(-14, -8); ctx.stroke();
+      ctx.strokeStyle = P.bear; ctx.lineWidth = 3.4; ctx.beginPath(); ctx.moveTo(-6, -14); ctx.lineTo(-14, -8); ctx.stroke();
+      // ears
+      ctx.strokeStyle = P.bearInk; ctx.lineWidth = 2; ctx.fillStyle = P.bear;
+      ctx.beginPath(); ctx.arc(-13, -33 - breathe, 3.6, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.arc(-1, -34 - breathe, 3.6, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.bearLight; ctx.beginPath(); ctx.arc(-13, -33 - breathe, 1.6, 0, 6.3); ctx.arc(-1, -34 - breathe, 1.6, 0, 6.3); ctx.fill();
+      // head
+      ctx.fillStyle = P.bear; ctx.beginPath(); ctx.arc(-6, -26 - breathe, 9.5, 0, 6.3); ctx.fill(); ctx.stroke();
+      // muzzle
+      ctx.fillStyle = P.bearLight; ctx.beginPath(); ctx.ellipse(-11, -24 - breathe, 5.2, 4, 0, 0, 6.3); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = P.bearInk; ctx.beginPath(); ctx.arc(-14.5, -25.5 - breathe, 1.7, 0, 6.3); ctx.fill();
+      // eye
+      ctx.beginPath(); ctx.arc(-8, -28.5 - breathe, 1.4, 0, 6.3); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(-7.6, -28.9 - breathe, 0.5, 0, 6.3); ctx.fill();
+      ctx.restore();
+    }
+
+    function drawBrand() {
+      ctx.font = font(600, 13); ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = rgba(P.greenRGB, 0.6); ctx.fillText('/.', W - 12, H - 10);
+      var w = ctx.measureText('/.').width;
+      ctx.fillStyle = 'rgba(255,255,255,0.38)'; ctx.fillText('tl', W - 12 - w, H - 10);
+      ctx.textAlign = 'left';
+    }
+
+    function drawScene(now, dt, introK) {
+      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+
+      // gridlines with price labels
+      var stepU = 4, p0 = Math.floor((camHi - H / PPU) / stepU) * stepU;
+      ctx.setLineDash([3, 5]); ctx.lineWidth = 1; ctx.strokeStyle = rgba(P.grid, 0.10);
+      ctx.font = font(500, 11); ctx.fillStyle = rgba(P.grid, 0.42); ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic';
+      for (var p = p0; p < camHi + stepU; p += stepU) {
+        var gy = Math.round(yOf(p)) + 0.5; if (gy < -4 || gy > H + 4) continue;
+        ctx.beginPath(); ctx.moveTo(8, gy); ctx.lineTo(W - 8, gy); ctx.stroke();
+        if (gy > 16 && gy < H - 22) ctx.fillText(String(p), W - 10, gy - 4);
+      }
+      ctx.setLineDash([]); ctx.textAlign = 'left';
+
+      // candles, inked near the bull and pencilled further out
+      var inkEdge = BULL_CX + LOOKAHEAD * SLOT;
+      var i, c, firstRed = null, bearList = [];
+      for (i = 0; i < candles.length; i++) {
+        c = candles[i];
+        if (c.x < -SLOT || c.x > W + SLOT) continue;
+        var inkK = clamp(1 - (c.x - inkEdge) / (2 * SLOT), 0, 1);
+        if (introK != null) { var ck = clamp((introK - i * 0.045) / 0.3, 0, 1); if (ck <= 0) continue; inkK *= ck; }
+        drawCandle(c, inkK, now);
+        if (c.gapAfter && candles[i + 1]) drawGapMarker(c, candles[i + 1], inkK);
+        if (c.bear) bearList.push([c, inkK]);
+        if (c.first && !c.scored && c.x > BULL_CX) firstRed = c;
+      }
+      for (i = 0; i < bearList.length; i++) { c = bearList[i][0]; drawBear(Math.round(c.x), Math.round(yOf(topU(c))), now * 0.004 + c.bearPhase, 0.3 + 0.7 * bearList[i][1]); }
+
+      // coached first hazard
+      if (firstRed && flagShown && phase === 'play') {
+        var fx = Math.round(firstRed.x), fy = Math.round(yOf(firstRed.h)) - 16 + (RM ? 0 : Math.sin(now * 0.006) * 2);
+        ctx.font = font(600, 11); var tw = ctx.measureText('jump').width + 22;
+        ctx.fillStyle = P.gold; ctx.beginPath(); rr(ctx, fx - tw / 2, fy - 16, tw, 18, 9); ctx.fill();
+        ctx.fillStyle = '#2a2208'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('↑ jump', fx, fy - 6.5); ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = P.gold; ctx.beginPath(); ctx.moveTo(fx - 4, fy + 2); ctx.lineTo(fx + 4, fy + 2); ctx.lineTo(fx, fy + 7); ctx.closePath(); ctx.fill();
+      }
+
+      // dodge puffs
+      for (i = 0; i < puffs.length; i++) {
+        ctx.globalAlpha = clamp(1 - puffs[i].t / 0.8, 0, 1); ctx.fillStyle = P.mint; ctx.font = font(600, 12);
+        ctx.fillText('+1', puffs[i].x, puffs[i].y);
+      }
+      ctx.globalAlpha = 1;
+
+      // ground shadow then the bull
+      var feetY = yOf(bullP), supC = supportAt(BULL_CX) || lastSupRef;
+      if (supC && phase !== 'over') {
+        var shY = yOf(topU(supC)), hgt = clamp((shY - feetY) / APEX, 0, 1);
+        ctx.fillStyle = rgba([0, 0, 0], 0.28 * (1 - hgt * 0.7)); ctx.beginPath(); ctx.ellipse(BULL_CX + 3, shY + 1.5, 23 * (1 - hgt * 0.35), 3.2, 0, 0, 6.3); ctx.fill();
+      }
+      if (phase === 'over') {
+        var k = clamp((now - overAt) / 260, 0, 1), e = 1 - (1 - k) * (1 - k);
+        drawBull(BULL_CX, feetY + e * 5, 'crash', anim, e * 1.0, 1);
+      } else if (introK != null) {
+        var bk = clamp((introK - 0.45) / 0.3, 0, 1);
+        if (bk > 0) drawBull(BULL_CX, feetY - (1 - bk) * 8, 'idle', 0, 0, bk);
+      } else {
+        drawBull(BULL_CX, feetY, grounded ? 'run' : 'jump', anim, grounded ? -lean : -0.12 - lean, 1);
+      }
+
+      // early hint, once per session
+      if (phase === 'play' && runs === 0 && jumps === 0) {
+        var age = now - startedAt;
+        if (age < 6000) {
+          ctx.globalAlpha = clamp(1 - (age - 4500) / 1500, 0, 1) * 0.8;
+          ctx.font = font(500, 12); ctx.fillStyle = P.fg3; ctx.fillText(coarse ? 'Tap to jump' : 'Tap or press space to jump', 14, H - 12); ctx.globalAlpha = 1;
+        }
+      }
+      drawBrand();
+
+      if (phase === 'over') drawOver(now);
+    }
+
+    function drawOver(now) {
+      var k = clamp((now - overAt - 120) / 220, 0, 1);
+      if (k <= 0) return;
+      ctx.globalAlpha = k;
+      ctx.fillStyle = rgba(P.bgRGB, 0.74); ctx.fillRect(0, 0, W, H);
+      var cx = W / 2, cy = H / 2, scale = H < 260 ? 0.8 : 1;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+      ctx.font = font(600, Math.round(16 * scale)); ctx.fillStyle = P.fg2;
+      ctx.letterSpacing = '0.18em'; ctx.fillText('GAME OVER', cx, cy - 46 * scale); ctx.letterSpacing = '0px';
+      ctx.font = font(600, Math.round(40 * scale)); ctx.fillStyle = P.fg; ctx.fillText(pad5(overScore), cx, cy - 4 * scale);
+      if (isNewBest) {
+        ctx.font = font(600, 11); var tw = ctx.measureText('NEW BEST').width + 24;
+        ctx.fillStyle = P.gold; ctx.beginPath(); rr(ctx, cx - tw / 2, cy + 6 * scale, tw, 18, 9); ctx.fill();
+        ctx.fillStyle = '#2a2208'; ctx.letterSpacing = '0.1em'; ctx.fillText('NEW BEST', cx + 1, cy + 6 * scale + 13); ctx.letterSpacing = '0px';
+      }
+      ctx.font = font(400, Math.round(14 * scale)); ctx.fillStyle = P.fg3; ctx.fillText(overLine, cx, cy + (isNewBest ? 44 : 30) * scale);
+      var left = Math.max(0, (RESTART_MS - (now - overAt)) / 1000);
+      var by = cy + (isNewBest ? 60 : 46) * scale, bw = 150, bh = 32;
+      ctx.strokeStyle = rgba(P.greenRGB, 0.9); ctx.lineWidth = 1.5; ctx.beginPath(); rr(ctx, cx - bw / 2, by, bw, bh, 16); ctx.stroke();
+      ctx.fillStyle = rgba(P.greenRGB, 0.12); ctx.fill();
+      ctx.font = font(600, 13); ctx.fillStyle = P.mint; ctx.fillText('Again  ·  ' + left.toFixed(1) + 's', cx, by + 20.5);
+      if (H >= 260) { ctx.font = font(400, 12); ctx.fillStyle = P.fg4; ctx.fillText(coarse ? 'tap to restart now' : 'tap to restart now  ·  press C to copy your score', cx, by + bh + 20); }
+      ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+
+    /* ---------- HUD text ---------- */
+    function setWit(txt) {
+      witEl.classList.remove('show');
+      setTimeout(function () { if (destroyed) return; witText.textContent = txt; witEl.classList.add('show'); }, 420);
+    }
+    var witIdx = Math.floor(Math.random() * WIT.length);
+    function rotateWit() { witIdx = (witIdx + 1) % WIT.length; setWit(WIT[witIdx]); }
+    function tickClock() {
+      var s = Math.floor((performance.now() - waitStart) / 1000);
+      clockEl.textContent = Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2);
+      var tier = -1; for (var i = 0; i < TIMER_WIT.length; i++) if (s >= TIMER_WIT[i][0]) { tier = i; break; }
+      if (tier !== timerTier) { timerTier = tier; timerWit.textContent = tier >= 0 ? '· ' + TIMER_WIT[tier][1] : ''; timerEl.classList.toggle('hot', s >= 30); }
+    }
+    function pulseNote() { noteEl.classList.remove('pulse'); void noteEl.offsetWidth; noteEl.classList.add('pulse'); }
+
+    /* ---------- input ---------- */
+    function act() {
+      if (dismissed) return;
+      if (phase === 'play') bufferedAt = performance.now();
+      else if (phase === 'over' && performance.now() - overAt > 250) restart();
+    }
+    function onKey(e) {
+      if (e.repeat) return;
+      var t = e.target, tag = t && t.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+      if (keyScope === 'canvas' && t !== canvas && t !== root) return;
+      if (e.code === 'Space' || e.code === 'ArrowUp' || e.key === ' ') { e.preventDefault(); act(); }
+      else if (e.code === 'KeyC' && phase === 'over') { copyScore(); }
+    }
+    function copyScore() {
+      var txt = 'I dodged ' + dodged + ' candle' + (dodged === 1 ? '' : 's') + ' and scored ' + pad5(overScore) + ' waiting for my backtest. Candle Runner on Tradl.';
+      try { var pr = win.navigator.clipboard && win.navigator.clipboard.writeText(txt); if (pr && pr.then) pr.then(function () { emit('copied', { score: overScore }); }, function () {}); } catch (e) {}
+    }
+    canvas.addEventListener('pointerdown', function (e) { if (e.button != null && e.button !== 0) return; e.preventDefault(); try { canvas.focus({ preventScroll: true }); } catch (x) {} act(); });
+    canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+    var keyTarget = keyScope === 'window' ? win : canvas;
+    keyTarget.addEventListener('keydown', onKey);
+    root.querySelector('.cr-skip').addEventListener('click', function (e) { e.preventDefault(); dismiss(); });
+
+    function onMessage(e) {
+      var d = e.data, name = typeof d === 'string' ? d : (d && d.type);
+      if (name === 'cr:dismiss' || name === 'cr:done' || name === 'cr:results') dismiss();
+    }
+    win.addEventListener('message', onMessage);
+
+    /* ---------- events out ---------- */
+    function emit(name, data) {
+      var msg = { source: 'candle-runner', event: name, data: data || {} };
+      try { if (opts.onEvent) opts.onEvent(name, msg.data); } catch (e) {}
+      if (inFrame) { try { win.parent.postMessage(msg, '*'); } catch (e) {} }
+    }
+    var ro = null;
+    function announceSize() { var h = root.getBoundingClientRect().height; emit('size', { height: Math.ceil(h) }); }
+
+    /* ---------- loop ---------- */
+    var last = performance.now(), rafId = 0;
+    function loop(now) {
+      rafId = win.requestAnimationFrame(loop);
+      var dt = Math.min(32, now - last) / 16.667; last = now;
+      if (phase === 'intro') {
+        introT += dt / 60;
+        var k = clamp(introT / 0.9, 0, 1);
+        drawScene(now, dt, k);
+        if (k >= 1) { phase = 'play'; startedAt = now; lastGroundedAt = now; }
+      } else if (phase === 'exit') {
+        drawScene(now, 0, null);
+      } else {
+        if (phase === 'play') step(now, dt);
+        drawScene(now, dt, null);
+      }
+      win.__crDebug = { t: +((now - startedAt) / 1000).toFixed(2), phase: phase, score: score, hi: hi, speed: +speed.toFixed(2), grounded: grounded,
+        feetY: Math.round(yOf(bullP)), next: nextHazard(), cause: phase === 'over' ? overCause : null, dodged: dodged, jumps: jumps, runs: runs, W: W, H: H };
+    }
+    function onVis() {
+      if (doc.hidden) { if (rafId) win.cancelAnimationFrame(rafId); rafId = 0; }
+      else if (!rafId && !destroyed) { last = performance.now(); rafId = win.requestAnimationFrame(loop); }
+    }
+    doc.addEventListener('visibilitychange', onVis);
+
+    /* ---------- lifecycle ---------- */
+    var dismissResolve = null;
+    function dismiss() {
+      if (dismissed) return dismissPromise;
+      dismissed = true; phase = 'exit'; clearTimeout(restartTimer);
+      root.classList.add('cr-exit'); emit('dismissed', { score: score, hi: hi, runs: runs + 1, jumps: jumps });
+      setTimeout(function () { if (dismissResolve) dismissResolve(); }, RM ? 220 : 470);
+      return dismissPromise;
+    }
+    var dismissPromise = new Promise(function (res) { dismissResolve = res; });
+    function destroy() {
+      if (destroyed) return; destroyed = true;
+      if (rafId) win.cancelAnimationFrame(rafId);
+      clearInterval(clockTimer); clearInterval(witTimer); clearTimeout(restartTimer);
+      keyTarget.removeEventListener('keydown', onKey); win.removeEventListener('message', onMessage); doc.removeEventListener('visibilitychange', onVis);
+      if (ro) ro.disconnect(); host.innerHTML = '';
+    }
+
+    /* ---------- boot ---------- */
+    if (win.ResizeObserver) { ro = new ResizeObserver(function () { var w = canvas.clientWidth, h = canvas.clientHeight; if (w !== W || h !== H) resize(); announceSize(); }); ro.observe(canvas); ro.observe(root); }
+    else win.addEventListener('resize', resize);
+    if (doc.fonts && doc.fonts.load) { try { doc.fonts.load('600 14px Inter'); doc.fonts.load('400 14px Inter'); } catch (e) {} }
+    resize(); reset();
+    phase = 'intro'; introT = RM ? 99 : 0;
+    setWit(WIT[witIdx]);
+    witTimer = setInterval(rotateWit, 14000);
+    if (showTimer) { tickClock(); clockTimer = setInterval(tickClock, 1000); }
+    rafId = win.requestAnimationFrame(loop);
+    emit('ready', {}); announceSize();
+
+    return { dismiss: dismiss, destroy: destroy, restart: restart, element: root, _debugCandles: function () { return candles.map(function (c) { return { x: c.x, o: c.o, c: c.c, h: c.h, l: c.l, kind: c.kind, gapAfter: c.gapAfter, bear: c.bear, id: c.id }; }); },
+      _art: { drawBull: drawBull, drawBear: drawBear, drawCandle: drawCandle, ctx: function () { return ctx; }, palette: P } };
+  }
+
+  return { mount: mount, constants: { CANDLE_W: CANDLE_W, SLOT: SLOT, PPU: PPU, JUMP_V: JUMP_V, GRAV: GRAV, APEX: APEX, AIR_FRAMES: AIR_FRAMES, SPEED0: SPEED0, SPEED_MAX: SPEED_MAX } };
+})();
+
+(function () {
+  var params = new URLSearchParams(location.search);
+  var inFrame = (function () { try { return window.self !== window.top; } catch (e) { return true; } })();
+  if (inFrame || params.get('embed') === '1') document.body.classList.add('cr-embed');
+  if (!params.has('nomount')) window.candleRunner = CandleRunner.mount(document.getElementById('cr-root'), { keys: 'window' });
+})();
+</script>
+</body>
+</html>

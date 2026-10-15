@@ -1,0 +1,41 @@
+{
+  "name": "tradl-candle-runner",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "npm run build:embed && next dev",
+    "build": "npm run build:embed && next build",
+    "start": "next start",
+    "build:embed": "node scripts/build-embed.mjs",
+    "lint": "next typegen && eslint && tsc --noEmit && node scripts/lint-design.mjs",
+    "format": "prettier --write .",
+    "test": "playwright test --project=app --project=embed",
+    "test:reference": "playwright test --project=reference",
+    "verify": "npm run lint && npm run build && npm test",
+    "ds:status": "node scripts/design-system.mjs status",
+    "ds:check": "node scripts/design-system.mjs check",
+    "ds:sync": "node scripts/design-system.mjs sync"
+  },
+  "dependencies": {
+    "@tabler/icons-react": "3.49.0",
+    "next": "16.4.1",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@types/node": "24.19.2",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "esbuild": "0.28.2",
+    "eslint": "9.39.5",
+    "eslint-config-next": "16.4.1",
+    "prettier": "3.9.9",
+    "typescript": "5.9.3"
+  },
+  "description": "Candle Runner: the game in Tradl's backtest chat while a run computes. React and Next.js, on the Tradl Design System.",
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=24"
+  }
+}

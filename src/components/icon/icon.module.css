@@ -1,0 +1,12 @@
+.icon {
+  display: inline-flex;
+  flex: none;
+  width: var(--icon-size, 1em);
+  height: var(--icon-size, 1em);
+}
+
+.icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}

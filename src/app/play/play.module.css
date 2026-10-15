@@ -1,0 +1,4 @@
+.play {
+  min-height: 100vh;
+  background: var(--cr-bg);
+}

@@ -1,0 +1,16 @@
+# Generated: by `npm run ds:sync`, `npm run build:embed`, Next and Playwright
+src/design-system/
+public/candle-runner-loading.html
+.next/
+next-env.d.ts
+test-results/
+playwright-report/
+
+# Kept exactly as they came
+reference/
+design-system/
+docs/prd/
+AGENTS.md
+
+# Prose: kept as written (tables stay readable)
+*.md

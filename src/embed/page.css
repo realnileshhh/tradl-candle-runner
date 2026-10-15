@@ -1,0 +1,21 @@
+/* The one-file build's own page: standalone ground, transparent inside a frame. */
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--cr-bg);
+}
+
+body.cr-embed {
+  background: transparent;
+}
+
+body {
+  font-family: var(--cr-font);
+  -webkit-font-smoothing: antialiased;
+}

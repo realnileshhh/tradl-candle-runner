@@ -1,0 +1,22 @@
+/* Truly global styles only. Everything else is a CSS Module, on design system tokens. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--ds-background-primary);
+  color: var(--ds-text-primary);
+  font: var(--ds-type-mobile-text-styles-body-md);
+  letter-spacing: var(--ds-type-mobile-text-styles-body-md-tracking);
+  -webkit-font-smoothing: antialiased;
+}
