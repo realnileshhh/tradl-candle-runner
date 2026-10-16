@@ -15,10 +15,13 @@
     The game posts {source:'candle-runner', event:'size', data:{height}} whenever its height changes, so the host can size the frame.
     When the report lands:  frame.contentWindow.postMessage('cr:results', '*');  then remove the frame after 750 ms.
     When the user leaves the conversation:  frame.contentWindow.postMessage('cr:dismiss', '*');
+    When the product switches between dark and light:  frame.contentWindow.postMessage({type:'cr:theme', theme:'light'}, '*');
+    (Load the frame with &theme=light to open in light. Inline, the game follows data-theme on any ancestor by itself.)
 
   Events posted to the parent window (and passed to opts.onEvent inline): ready, start, first-jump,
   game-over {score, cause, hazards, seconds}, new-best, copied, dismissed, size.
   Query flags: timer=0 hides the waiting timer. embed=1 forces a transparent page (automatic inside an iframe).
+  theme=light or theme=dark opens in that design system mode (dark by default).
 -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

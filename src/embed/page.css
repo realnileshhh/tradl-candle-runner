@@ -1,8 +1,5 @@
-/* The one-file build's own page: standalone ground, transparent inside a frame. */
-
-:root {
-  color-scheme: dark;
-}
+/* The one-file build's own page: standalone ground, transparent inside a frame.
+   The design system's tokens set color-scheme with the mode. */
 
 html,
 body {
@@ -11,7 +8,10 @@ body {
   background: var(--cr-bg);
 }
 
-body.cr-embed {
+/* Inside a frame the host's page shows through: <html> as well as <body>, since
+   the root's background paints the whole frame. */
+.cr-embed,
+.cr-embed body {
   background: transparent;
 }
 

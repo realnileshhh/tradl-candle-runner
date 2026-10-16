@@ -2,63 +2,127 @@
  * Candle Runner's own tokens: the game's theming API (PRD section 5; the host can
  * override any of them from its own stylesheet).
  *
- * Today they hold the values the game shipped with on 13 October 2026, read from
- * the product's loading screen. Harmonising the game with the Tradl Design System
- * means pointing each one at a design system token, e.g.
- *   --cr-green: var(--ds-accent-secondary);
- * `npm run lint` lists the tokens that still hold a colour of their own.
+ * Every one points at a Tradl Design System token (src/design-system/tokens.css),
+ * read from the product's own screens on 16 October 2026: the candlestick chart
+ * on the Stock page (8164:2356 dark, 8500:69476 light), the backtest detail and
+ * the type the product sets. docs/harmonisation.md has each mapping and why.
+ *
+ * The colours are declared on every [data-theme] as well as :root, because a
+ * custom property resolves where it is declared: a subtree switched to Light
+ * must work its --cr-* out again from its own --ds-* values, not inherit Dark's.
  */
-:root {
-  /* ground and lines */
-  --cr-bg: #0a120e; /* page ground when standalone */
-  --cr-panel: rgba(255, 255, 255, 0.016); /* panel fill */
-  --cr-line: rgba(255, 255, 255, 0.08); /* panel and timer borders */
-  --cr-grid: #8aa89a; /* gridlines at 10%, price labels at 42% */
+:root,
+[data-theme] {
+  /* ground and lines: the product's chart card */
+  --cr-bg: var(--ds-gradient-background-primary-to); /* page ground when standalone */
+  --cr-panel: var(--ds-table-card-bg); /* panel fill */
+  --cr-line: var(--ds-border-default); /* panel border */
+  --cr-grid: var(--ds-border-subtle); /* the price axis's edge */
+  --cr-axis: var(--ds-text-secondary); /* price labels */
+  --cr-chip: var(--ds-background-surface); /* timer chip fill */
+  --cr-chip-line: var(--ds-border-subtle); /* timer chip border */
 
   /* type */
-  --cr-fg: #ffffff; /* score figures, game over score */
-  --cr-fg-2: #d4d4d4; /* "GAME OVER" */
-  --cr-fg-3: #a3a3a3; /* witty line, timer, hints */
-  --cr-fg-4: #6b7a73; /* score strip labels */
+  --cr-fg: var(--ds-text-primary); /* score figures, game over score */
+  --cr-fg-2: var(--ds-text-secondary); /* "Game over" */
+  --cr-fg-3: var(--ds-text-secondary); /* timer, hints, the line on the card */
+  --cr-fg-4: var(--ds-text-tertiary); /* witty line, score strip labels, restart line */
 
-  /* candles */
-  --cr-green: #4fb37c; /* green candle body, signature, restart pill */
-  --cr-green-edge: #7ad3a0; /* green candle outline and wick */
-  --cr-green-deep: #37724e; /* brand green */
-  --cr-mint: #a9e5c3; /* "+1" puffs, restart pill text */
-  --cr-red: #dc5550; /* red candle body */
-  --cr-red-edge: #f2817b; /* red candle outline and wick */
-  --cr-neutral: #5f6d67; /* doji wall body */
-  --cr-neutral-edge: #8e9c96; /* doji wall outline */
-  --cr-hatch: #ffffff; /* doji wall hatching, at 16% */
+  /* candles: solid, wick and body one colour, as the product draws them */
+  --cr-green: var(--ds-accent-secondary); /* green candle body */
+  --cr-green-edge: var(--ds-accent-secondary); /* green wick and pencilled outline */
+  --cr-mint: var(--ds-accent-secondary); /* the skip link */
+  --cr-red: var(--ds-accent-negative); /* red candle body */
+  --cr-red-edge: var(--ds-accent-negative); /* red wick and pencilled outline */
+  --cr-tag: var(--ds-accent-secondary); /* the last-price tag on the axis */
+  --cr-tag-ink: var(--ds-text-primary); /* its figure */
 
   /* accents */
-  --cr-gold: #e6c46a; /* jump flag, "NEW BEST" chip, bull's nose ring */
-  --cr-chip-ink: #2a2208; /* text on the gold chips */
-  --cr-amber: #d9a441; /* timer chip from 30 seconds */
-  --cr-amber-line: rgba(217, 164, 65, 0.35); /* its border */
-  --cr-focus: rgba(79, 179, 124, 0.55); /* canvas focus ring */
-  --cr-brand-ink: #ffffff; /* "tl" of the canvas mark, at 38% */
+  --cr-gold: var(--ds-accent-intermediate); /* jump flag, "New best" chip */
+  --cr-chip-ink: var(--ds-text-inverse-neutral); /* text on the gold chips: dark in both modes */
+  --cr-amber: var(--ds-text-waiting); /* timer chip from 30 seconds */
+  --cr-amber-line: var(--ds-accent-tints-intermediate-30); /* its border */
+  --cr-focus: var(--ds-accent-secondary); /* canvas focus ring */
+  --cr-overlay: var(--ds-overlay-backdrop-80); /* the chart behind the game over card */
+  /* "Re-enter": the design system's primary button (Primary Buttons, Icon+Text) */
+  --cr-button-from: var(--ds-gradient-accent-positive-default-from);
+  --cr-button-to: var(--ds-gradient-accent-positive-default-to);
+  --cr-button-ink: var(--ds-text-primary);
+  --cr-button-icon: var(--ds-icon-default);
+  --cr-button-line: var(--ds-border-subtle);
+  /* the "space" keycap (Figma: game-over-v1, cr/keycap; the design system has no key component) */
+  --cr-key: var(--ds-background-surface);
+  --cr-key-line: var(--ds-border-default);
+  --cr-key-edge: var(--ds-border-medium); /* its bottom edge, as a key's lip */
+  --cr-brand-ink: var(--ds-text-primary); /* the "t" of the canvas mark, at 38% */
+  --cr-brand-accent: var(--ds-accent-secondary); /* the top bar's "tl/." signature */
 
-  /* characters */
-  --cr-bull: #efe7d6;
-  --cr-bull-shade: #d4c6a6;
-  --cr-bull-ink: #1c201e;
-  --cr-horn: #d9c08a;
-  --cr-eye: #ffffff;
-  --cr-bear: #8a5a3b;
-  --cr-bear-light: #c99a74;
-  --cr-bear-ink: #2a1c14;
-  --cr-shadow: #000000; /* the bull's ground shadow, at 28% or less */
+  /* the characters: the bull and the bear on their character sheets' tokens
+     (Candle Runner Figma file, bull-sheet-v1 and bear-sheet-v1). Their cut lines,
+     eyes and noses are holes, so they show the chart behind in either mode. */
+  --cr-bull: var(--ds-text-primary); /* the bull's body */
+  --cr-bull-shade: var(--ds-text-tertiary); /* its far legs and ear */
+  --cr-horn: var(--ds-accent-secondary); /* its horns and tail tuft */
+  --cr-bear: var(--ds-text-secondary); /* the bear's body */
+  --cr-bear-shade: var(--ds-text-tertiary); /* its far limbs and ear */
+  --cr-bear-claw: var(--ds-accent-negative); /* its claws and tail */
+  --cr-bear-ink: var(--ds-text-inverse-neutral); /* its eyes, brow, nose and cut lines: dark in both modes */
+}
 
+/* The product's last-price tag is a tint in Light, solid in Dark (Stock page, 8157:7915). */
+[data-theme="light"] {
+  --cr-tag: var(--ds-accent-tints-positive-60);
+  /* The bear's sheet draws it a step lighter in Light than its far side, as its
+     light tile does (bear-sheet-v1, 09-colour): the two greys swap. */
+  --cr-bear: var(--ds-text-tertiary);
+  --cr-bear-shade: var(--ds-text-secondary);
+}
+
+:root {
   /* the rupee note in the score strip */
-  --cr-note-fill: #e6c46a;
-  --cr-note-ink: #9c7a2a;
-  --cr-note-light: #f4dfa3;
-  --cr-note-text: #6d4e12;
+  --cr-note-fill: var(--ds-primitive-color-heatmap-intermediate-light-500);
+  --cr-note-ink: var(--ds-primitive-color-heatmap-intermediate-dark-300);
+  --cr-note-light: var(--ds-primitive-color-heatmap-intermediate-light-300);
+  --cr-note-text: var(--ds-primitive-color-yellow-500-4);
 
-  /* type and size */
-  --cr-font: var(--ds-font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* type: the design system's text styles, picked to set the game the way the
+     product sets the same kind of text (sentence case, no tracked capitals) */
+  --cr-font: var(--ds-font-inter);
+  --cr-type-wit: var(--ds-type-mobile-text-styles-body-md);
+  --cr-type-wit-tracking: var(--ds-type-mobile-text-styles-body-md-tracking);
+  --cr-type-sig: var(--ds-type-mobile-text-styles-label-lg);
+  --cr-type-sig-tracking: var(--ds-type-mobile-text-styles-label-lg-tracking);
+  --cr-type-timer: var(--ds-type-mobile-text-styles-numeric-sm);
+  --cr-type-timer-tracking: var(--ds-type-mobile-text-styles-numeric-sm-tracking);
+  --cr-type-label: var(--ds-type-mobile-text-styles-body-sm);
+  --cr-type-label-tracking: var(--ds-type-mobile-text-styles-body-sm-tracking);
+  --cr-type-figure: var(--ds-type-mobile-text-styles-numeric-md);
+  --cr-type-figure-tracking: var(--ds-type-mobile-text-styles-numeric-md-tracking);
+  --cr-type-axis: var(--ds-type-mobile-text-styles-caption); /* the product's price axis: 10/14 */
+  --cr-type-axis-tracking: var(--ds-type-mobile-text-styles-caption-tracking);
+  --cr-type-hint: var(--ds-type-mobile-text-styles-body-sm);
+  --cr-type-hint-tracking: var(--ds-type-mobile-text-styles-body-sm-tracking);
+  --cr-type-chip: var(--ds-type-mobile-text-styles-label-md);
+  --cr-type-chip-tracking: var(--ds-type-mobile-text-styles-label-md-tracking);
+  --cr-type-over-title: var(--ds-type-mobile-text-styles-heading-sm);
+  --cr-type-over-title-tracking: var(--ds-type-mobile-text-styles-heading-sm-tracking);
+  --cr-type-over-score: var(--ds-type-display-xxxl);
+  --cr-type-over-score-tracking: var(--ds-type-display-xxxl-tracking);
+  --cr-type-over-score-compact: var(--ds-type-mobile-text-styles-display-lg); /* on the short phone canvas */
+  --cr-type-over-score-compact-tracking: var(--ds-type-mobile-text-styles-display-lg-tracking);
+  --cr-type-over-line: var(--ds-type-mobile-text-styles-body-md);
+  --cr-type-over-line-tracking: var(--ds-type-mobile-text-styles-body-md-tracking);
+  /* The button component sets its label in 12/16 Medium, a style the library's text
+     styles don't list; Label/MD is the nearest, 12/16 Semi Bold. */
+  --cr-type-button: var(--ds-type-mobile-text-styles-label-md);
+  --cr-type-button-tracking: var(--ds-type-mobile-text-styles-label-md-tracking);
+
+  /* radius on the canvas */
+  --cr-radius-chip: var(--ds-radius-999);
+  --cr-radius-button: var(--ds-radius-8);
+  --cr-radius-key: var(--ds-radius-4);
+
+  /* size */
   --cr-canvas-h: 380px;
 }
 

@@ -58,7 +58,12 @@
   cursor: pointer;
 }
 
-.button:hover:not(:disabled),
+/* Hovering is a layer over the button's own surface: in Light the two tokens hold
+   the same value, so in place of the surface the hover showed nothing. */
+.button:hover:not(:disabled) {
+  background-image: linear-gradient(var(--ds-interaction-hovering), var(--ds-interaction-hovering));
+}
+
 .segment:hover {
   background: var(--ds-interaction-hovering);
 }
@@ -93,6 +98,9 @@
 }
 
 .segment {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-gap-4);
   border-color: transparent;
   border-radius: var(--ds-radius-6);
   background: transparent;
@@ -102,6 +110,17 @@
 .segment[aria-checked="true"] {
   background: var(--ds-interaction-selected);
   color: var(--ds-text-primary);
+}
+
+.segmentIcon {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ds-icon-secondary);
+}
+
+.segment[aria-checked="true"] .segmentIcon {
+  color: var(--ds-icon-default);
 }
 
 /* the chat column: 1,005 px wide in the product (PRD section 5) */
