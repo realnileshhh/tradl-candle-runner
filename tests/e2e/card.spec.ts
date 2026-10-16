@@ -21,11 +21,13 @@ const strip = (page: Page) =>
 
 test("the score strip reads Personal best, with figures as the product writes them", async ({ page, openGame }, info) => {
   test.skip(info.project.name === "reference", NEW_DESIGN);
+  test.setTimeout(90_000);
   await openGame();
   expect((await strip(page)).hi.startsWith("Personal best")).toBe(true);
   await startScriptedPlayer(page, "space");
-  // About 1,400 points a minute at the start: 12 s passes 1,000 and shows a group.
-  await page.waitForFunction(() => (window.__crDebug?.score ?? 0) > 1000, null, { timeout: 30_000, polling: "raf" });
+  // A point is 12 px of running: 840 a minute at the start pace, more at each level.
+  // The score passes 1,000, and shows a group, at about 42 s.
+  await page.waitForFunction(() => (window.__crDebug?.score ?? 0) > 1000, null, { timeout: 60_000, polling: "raf" });
   const s = await strip(page);
   expect(s.score).toMatch(FIGURE);
   expect(s.hiFigure).toMatch(FIGURE);

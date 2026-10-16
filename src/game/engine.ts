@@ -915,7 +915,8 @@ export function mount(host: HTMLElement, opts: MountOptions): CandleRunnerHandle
     // The bear breathes through its four drawings; with reduced motion it holds the first.
     // The bear that ended the run swats back (Figma: bear-hit-v1); from the raise on
     // it stands in front of the bull, drawn after it below. Reduced motion: the growl alone.
-    const hitMs = phase === "over" && hitBear ? now - overAt : -1;
+    // From zero: the death is stamped a moment after this frame's own timestamp.
+    const hitMs = phase === "over" && hitBear ? Math.max(0, now - overAt) : -1;
     bearPose = hitMs < 0 ? null : RM ? "react-growl" : swatFrame(hitMs);
     for (const [c, inkK] of bearList) {
       if (c === hitBear && bearPose && bearPose !== "breathe-01") continue;
