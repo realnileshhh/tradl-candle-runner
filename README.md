@@ -4,6 +4,8 @@ The game in Tradl's backtest chat while a run computes: a bull runs along a cand
 
 - **Behaviour:** the PRD, `docs/prd/candle-runner.md`.
 - **Look:** the Tradl Design System in Figma (read only), mirrored in `design-system/` and generated into `src/design-system/`.
+- **The characters:** the bull and the bear locked in the Candle Runner Figma file, exported into `characters/figma/` and generated into `src/game/characters.ts` (`npm run characters:sync`). The classic pair is kept in `characters/classic/`.
+- **The chart:** NIFTY 50's daily candles, `data/nifty-daily.csv`, generated into `src/game/nifty-data.ts` (`npm run market:sync`).
 - **Working on it with Claude Code:** `CLAUDE.md` and `.claude/rules/`.
 
 ## Run it
