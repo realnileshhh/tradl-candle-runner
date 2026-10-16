@@ -53,7 +53,13 @@ export const MAX_RISE_U = 1.55; // rising cap between consecutive green tops, pr
 // running off it falls 0.23 t^2, meets the stairs within (1.4 * PPU / SLOT)^2 * SPEED_MAX^2
 // / (GRAV / 2) = 94 px, inside the 146 px below its feet on the smallest canvas.
 export const DROP_MAX_U = 1.4;
-export const LEG_MAX = 6; // steps down in a row before a pause lands the bull: the PRD's longest leg
+// A fall stops at the room below the bull on the smallest canvas (its feet sit at 60%
+// of the height: 0.4 * 230 px, --cr-canvas-h at 600 px wide and below), then the chart
+// holds level for PAUSE_CANDLES: the camera follows only a grounded bull, and three
+// level candles let it catch up most of the way at top speed.
+export const MIN_CANVAS_H = 230;
+export const LEG_DROP_U = (0.4 * MIN_CANVAS_H) / PPU; // 4.4 units
+export const PAUSE_CANDLES = 3;
 export const RUNWAY_STEP_U = 0.35; // a runway after a hazard drifts at most this a candle, as the generated one did
 export const FLAT_STEP_U = 0.15; // a candle held level for a flat approach: three stay within 0.35 of each other
 

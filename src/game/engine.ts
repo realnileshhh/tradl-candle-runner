@@ -38,11 +38,12 @@ import {
   FIRST_HAZARD_SLOTS,
   GRAV,
   JUMP_V,
-  LEG_MAX,
+  LEG_DROP_U,
   LOOKAHEAD,
   MARKET_PCT,
   MAX_RISE_U,
   NARROW_W,
+  PAUSE_CANDLES,
   PPU,
   RUNWAY_STEP_U,
   SLOT,
@@ -80,8 +81,10 @@ interface Generator {
   level: number;
   /** The close of the run's first day, NIFTY points: price unit 100 on the axis. */
   base: number;
-  /** Steps down in a row, for the pause after a leg. */
+  /** How far the chart has fallen since it last paused, units. */
   falls: number;
+  /** Level candles left in a pause after a long fall. */
+  pause: number;
   debt: number;
   hold: number;
   sinceHazard: number;
@@ -298,14 +301,21 @@ export function mount(host: HTMLElement, opts: MountOptions): CandleRunnerHandle
     const day = nextDay();
     const p = gen.price;
     let t = clamp(gen.level, p - DROP_MAX_U, p + MAX_RISE_U);
-    if (p - t > 0.35) {
-      // a run of steps down pauses after the longest leg, so the bull lands and the
-      // camera catches up before the next drop (docs/decisions.md, 2026-10-16)
-      if (++gen.falls > LEG_MAX) {
-        t = p;
+    if (gen.pause > 0) {
+      // a pause: level candles, so the bull lands and the camera catches up
+      t = p;
+      gen.pause--;
+    } else {
+      // A fall runs at most the room below the bull on the smallest canvas, then
+      // pauses: the camera follows only a grounded bull, so a longer fall at speed
+      // would drop it out of sight (docs/decisions.md, 2026-10-16).
+      gen.falls = Math.max(0, gen.falls + p - t);
+      if (gen.falls >= LEG_DROP_U) {
+        t = Math.max(t, p - (LEG_DROP_U - (gen.falls - (p - t))));
         gen.falls = 0;
+        gen.pause = PAUSE_CANDLES;
       }
-    } else gen.falls = 0;
+    }
     const c = dayCandle(x, day, t);
     gen.price = t;
     return c;
@@ -464,6 +474,7 @@ export function mount(host: HTMLElement, opts: MountOptions): CandleRunnerHandle
       level: 100 - K * dayMove(day),
       base: DAYS[day].close,
       falls: 0,
+      pause: 0,
       debt: 0,
       hold: 100,
       sinceHazard: 0,
@@ -1268,7 +1279,7 @@ export function mount(host: HTMLElement, opts: MountOptions): CandleRunnerHandle
       theme,
       price: +priceAt(bullP).toFixed(2),
       day: supportAt(BULL_CX)?.day,
-      clock: +clock.toFixed(3),
+      clock,
       level: levelAt(clock),
       coach: phase === "play" ? coach : null,
       bearPose,

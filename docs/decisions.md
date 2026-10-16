@@ -208,7 +208,7 @@ The user: "use these data as candles throughout, so that the game becomes an end
 - **How a day becomes a candle** (`engine.ts`, the spawner): one price unit is 0.8% of the price (`MARKET_PCT`). A typical day then moves the chart half a unit, and 88% of days fit the caps as they were. The candle is green, and its close follows NIFTY's level as far as the fairness rules allow:
   - a step of at most the rising cap up (1.55 units);
   - a step of at most 1.4 down (`DROP_MAX_U`), the steepest step of the PRD's down mood. By the jump physics, a bull running off such a staircase at top speed meets it again within 127 px, inside the 146 px below its feet on the smallest canvas;
-  - a pause after six steps down in a row (`LEG_MAX`, the PRD's longest leg);
+  - a fall of at most 4.4 units before three level candles (`LEG_DROP_U`, `PAUSE_CANDLES`). 4.4 units is the room below the bull on the smallest canvas, so the bull lands and the camera catches up. This replaced "a pause after six steps down" (`LEG_MAX`): in the 45 s gate at the new top speed, NIFTY's catch-up after a hazard made two six-step legs with one level candle between them, and the scripted player fell out of sight at 37.9 s;
   - a runway after a hazard that drifts at most 0.35 units a candle (`RUNWAY_STEP_U`), as the generated runway did;
   - a flat approach held within 0.15 a candle (`FLAT_STEP_U`).
 
