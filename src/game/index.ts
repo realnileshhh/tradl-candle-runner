@@ -10,4 +10,5 @@ export type {
   EventData,
   HostMessage,
   MountOptions,
+  Theme,
 } from "./types";

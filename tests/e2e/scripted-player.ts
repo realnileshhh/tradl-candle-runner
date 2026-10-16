@@ -29,9 +29,17 @@ interface AuditCandle {
  * further than the game shows, so a death means the spawner made something
  * unwinnable or the physics changed.
  */
-export async function startScriptedPlayer(page: Page, input: Input) {
+/**
+ * `walkIntoGapsFrom`: from this speed on, the player stops jumping gaps (the pit check).
+ * `walkIntoBears`: the player never jumps a bear (the bear's swat check).
+ */
+export async function startScriptedPlayer(
+  page: Page,
+  input: Input,
+  opts: { walkIntoGapsFrom?: number; walkIntoBears?: boolean } = {},
+) {
   await page.evaluate(
-    ({ input, air, boxR }) => {
+    ({ input, air, boxR, walkFrom, walkIntoBears }) => {
       const canvas = document.querySelector("canvas") as HTMLCanvasElement;
       const bot = { deaths: 0, deathLog: [] as string[], presses: 0, maxSpeed: 0, lastPhase: "", lastPressAt: -1e9 };
       let lastTick = performance.now();
@@ -73,16 +81,20 @@ export async function startScriptedPlayer(page: Page, input: Input) {
           bot.lastPhase = d.phase;
           bot.maxSpeed = Math.max(bot.maxSpeed, d.speed);
           const n = d.next;
-          if (d.phase === "play" && d.grounded && n && performance.now() - bot.lastPressAt > 120) {
+          // A press counts on the ground and just off an edge (coyote time), as for a person: a small
+          // step down right before a gap edge leaves the bull briefly airborne through the whole
+          // gap window. The original has no canJump, so there it falls back to grounded.
+          const canJump = d.canJump ?? d.grounded;
+          if (d.phase === "play" && canJump && n && performance.now() - bot.lastPressAt > 120) {
             let want: boolean;
             if (n.kind === "gap") {
-              want = n.dist > 0 && n.dist <= d.speed * Math.max(2.5, frames * 2.5) + 2;
+              want = n.dist > 0 && n.dist <= d.speed * Math.max(2.5, frames * 2.5) + 2 && d.speed < walkFrom;
             } else {
               // distance from the hit box's centre to the hazard's centre
               const half = n.kind === "bear" ? 13 : n.width / 2;
               const centre = n.dist + (boxR - 4) + half;
               const passed = n.dist + n.width + 40 < 0;
-              want = !passed && centre <= (air * d.speed) / 2;
+              want = !passed && centre <= (air * d.speed) / 2 && !(n.kind === "bear" && walkIntoBears);
             }
             if (want) press();
           }
@@ -91,7 +103,13 @@ export async function startScriptedPlayer(page: Page, input: Input) {
       };
       requestAnimationFrame(tick);
     },
-    { input, air: AIR_FRAMES, boxR: BOX_R },
+    {
+      input,
+      air: AIR_FRAMES,
+      boxR: BOX_R,
+      walkFrom: opts.walkIntoGapsFrom ?? Infinity,
+      walkIntoBears: opts.walkIntoBears ?? false,
+    },
   );
 }
 
@@ -156,9 +174,20 @@ function audit(candles: AuditCandle[]) {
     if (kind === "red" && last?.kind === "red" && last.end === c.id - 1) last.end = c.id;
     else hazards.push({ kind, start: c.id, end: c.id });
   }
+  // the smallest green body: a plain or bear candle, its body from open to close
+  const greens = candles.filter((c) => c.kind === "up");
+  const minGreenBody = greens.length ? Math.min(...greens.map((c) => Math.abs(c.c - c.o))) : null;
   let minBetween = Infinity;
   for (let i = 1; i < hazards.length; i++) minBetween = Math.min(minBetween, hazards[i].start - hazards[i - 1].end - 1);
   const kinds = hazards.reduce<Record<string, number>>((acc, h) => ({ ...acc, [h.kind]: (acc[h.kind] ?? 0) + 1 }), {});
   const streaks = hazards.filter((h) => h.end > h.start).length;
-  return { candles: candles.length, maxStep: +maxStep.toFixed(2), minBetween, kinds, streaks, cap: MAX_RISE_U };
+  return {
+    candles: candles.length,
+    maxStep: +maxStep.toFixed(2),
+    minGreenBody: minGreenBody === null ? null : +minGreenBody.toFixed(3),
+    minBetween,
+    kinds,
+    streaks,
+    cap: MAX_RISE_U,
+  };
 }
