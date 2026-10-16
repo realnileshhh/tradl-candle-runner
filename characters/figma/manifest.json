@@ -1,0 +1,37 @@
+{
+  "file": "IY2vpfEtVluENs9q2dXdVy",
+  "readOn": "2026-10-16",
+  "note": "The drawings the game uses, from the locked character sheets in the Candle Runner Figma file. Each SVG is the drawing's vector layers as Figma exports them (Dev Mode SVG asset), coordinates relative to the drawing's box. box and ground are in sheet pixels; ground is the y the feet stand on in that panel.",
+  "bull": {
+    "node": "3:6",
+    "sheet": "bull-sheet-v1",
+    "drawings": {
+      "run-01": { "id": "6:190", "box": [2311.7, 409.94, 206.4, 171.59], "ground": 617.7 },
+      "run-02": { "id": "6:197", "box": [2541.74, 436.53, 206.26, 181.17], "ground": 617.7 },
+      "run-03": { "id": "6:204", "box": [2771.43, 426.4, 256.86, 191.31], "ground": 617.7 },
+      "run-04": { "id": "6:211", "box": [3037.3, 437.62, 260.97, 180.08], "ground": 617.7 },
+      "run-05": { "id": "6:218", "box": [3326.03, 434.69, 205.25, 183.36], "ground": 617.7 },
+      "run-06": { "id": "6:226", "box": [3570.32, 415.61, 199.69, 181.06], "ground": 617.7 },
+      "jump-takeoff": { "id": "6:234", "box": [96.61, 909.67, 326.01, 268.16], "ground": 1177.83 },
+      "jump-apex": { "id": "6:241", "box": [526.7, 880.39, 330.25, 223.41], "ground": 1103.8 },
+      "jump-land": { "id": "6:249", "box": [975.35, 915, 304.89, 264.35], "ground": 1179.35 },
+      "idle-ready": { "id": "6:257", "box": [1459.89, 909.36, 421.02, 283.99], "ground": 1193.35 },
+      "crash-stumble": { "id": "6:272", "box": [2628.66, 909.31, 450.64, 284.28], "ground": 1193.59 },
+      "crash-down": { "id": "6:280", "box": [3182.35, 973.26, 518.7, 220.13], "ground": 1193.39 }
+    }
+  },
+  "bear": {
+    "node": "17:4",
+    "sheet": "bear-sheet-v1",
+    "drawings": {
+      "breathe-01": { "id": "26:62", "box": [2344.3, 355.99, 245.25, 305.06], "ground": 661.05 },
+      "breathe-02": { "id": "26:74", "box": [2707.06, 358, 260.46, 303.05], "ground": 661.05 },
+      "breathe-03": { "id": "26:86", "box": [3078.98, 351, 258.2, 310.08], "ground": 661.08 },
+      "breathe-04": { "id": "26:98", "box": [3463.71, 353.92, 242.19, 307.15], "ground": 661.07 },
+      "swipe-raise": { "id": "26:111", "box": [132.09, 901, 266.91, 312.03], "ground": 1213.02 },
+      "swipe-swipe": { "id": "26:123", "box": [532.45, 1004.56, 310.07, 208.48], "ground": 1213.04 },
+      "swipe-down": { "id": "26:131", "box": [967.43, 1014.43, 289.96, 212.88], "ground": 1213 },
+      "react-growl": { "id": "26:171", "box": [3316.09, 865.91, 290.3, 345.14], "ground": 1211.05 }
+    }
+  }
+}

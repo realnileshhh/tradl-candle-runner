@@ -2,6 +2,7 @@
 // strip and the panel. Built once at mount from the CSS Module's class names, so
 // the React component and the one-file build render the same markup.
 
+import { dsIcons } from "@/design-system/icons";
 import { COPY } from "./copy";
 import type { CandleRunnerClasses } from "./types";
 
@@ -28,10 +29,6 @@ const noteSvg = (c: CandleRunnerClasses) =>
   `<circle class="${c.noteCoin}" cx="15" cy="9" r="4" stroke-width=".9"/>` +
   `<text class="${c.noteText}" x="15" y="12" text-anchor="middle" font-size="7.5" font-weight="700">&#8377;</text></svg>`;
 
-// Harmonisation backlog: drawn by hand; the design system has icon-clock (49:12).
-const CLOCK_SVG =
-  '<svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6.5" r="4.6" fill="none" stroke="currentColor" stroke-width="1.2"/>' +
-  '<path d="M6 4v2.6l1.8 1.1M4.4 1.2h3.2" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>';
 
 export function createView(host: HTMLElement, c: CandleRunnerClasses, showTimer: boolean): View {
   host.innerHTML =
@@ -39,11 +36,11 @@ export function createView(host: HTMLElement, c: CandleRunnerClasses, showTimer:
     `<a class="${c.skip}" href="#">${COPY.skip}</a>` +
     `<div class="${c.top}">` +
     `<span class="${c.wit}"><span data-cr="wit-text"></span><span class="${c.sig}">${COPY.signature}</span></span>` +
-    `<span class="${c.timer}"${showTimer ? "" : " hidden"}>${CLOCK_SVG}<b data-cr="clock">0:00</b><span class="${c.timerWit}"></span></span>` +
+    `<span class="${c.timer}"${showTimer ? "" : " hidden"}>${dsIcons["icon-clock"]}<b data-cr="clock">0:00</b><span class="${c.timerWit}"></span></span>` +
     `</div>` +
     `<div class="${c.hud}">` +
-    `<span data-cr="hi">${COPY.hi}<b>00000</b></span>` +
-    `<span class="${c.score}"><span class="${c.note}" aria-hidden="true">${noteSvg(c)}</span><span data-cr="score">${COPY.score}<b>00000</b></span></span>` +
+    `<span data-cr="hi">${COPY.hi}<b>0</b></span>` +
+    `<span class="${c.score}"><span class="${c.note}" aria-hidden="true">${noteSvg(c)}</span><span data-cr="score">${COPY.score}<b>0</b></span></span>` +
     `</div>` +
     `<div class="${c.panel}">` +
     `<canvas class="${c.canvas}" tabindex="0" role="img" aria-label="${COPY.canvasLabel}"></canvas>` +

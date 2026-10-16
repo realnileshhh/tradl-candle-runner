@@ -12,9 +12,21 @@
 // `use_figma` returns at most 20 KB, so variables and icons come in numbered
 // parts of up to 18 KB each. Save each part, exactly as returned, to
 // design-system/snapshot/<part>.json, then `npm run ds:sync`.
+//
+// Every list is sorted before it is hashed or split, so moving a variable, an
+// icon, a page or a style around in Figma changes no hash: only an addition, a
+// removal, a rename or a new value does.
 
 const PART = "fingerprint";
 const LIMIT = 18000;
+
+// Plain code-unit order of each row's JSON: the same in every JS engine, and
+// total, since no two rows are alike.
+const sorted = (rows) =>
+  rows
+    .map((row) => [JSON.stringify(row), row])
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+    .map(([, row]) => row);
 
 const hex = ({ r, g, b, a }) => {
   const byte = (v) =>
@@ -80,35 +92,41 @@ const textStyles = await figma.getLocalTextStylesAsync();
 
 const meta = {
   file: "ZRYpUf3iulUMH0Rbdb68hk",
-  pages: figma.root.children.map((p) => [p.id, p.name]),
-  collections: collections.map((c) => [c.name, c.modes.map((m) => m.name)]),
-  textStyles: textStyles.map((s) => ({
-    name: s.name,
-    fontFamily: s.fontName.family,
-    fontStyle: s.fontName.style,
-    fontSize: s.fontSize,
-    lineHeight: s.lineHeight.unit === "AUTO" ? "auto" : `${s.lineHeight.value}${unit(s.lineHeight.unit)}`,
-    letterSpacing: `${s.letterSpacing.value}${unit(s.letterSpacing.unit)}`,
-    textCase: s.textCase,
-  })),
+  pages: sorted(figma.root.children.map((p) => [p.id, p.name])),
+  collections: sorted(collections.map((c) => [c.name, c.modes.map((m) => m.name)])),
+  textStyles: sorted(
+    textStyles.map((s) => ({
+      name: s.name,
+      fontFamily: s.fontName.family,
+      fontStyle: s.fontName.style,
+      fontSize: s.fontSize,
+      lineHeight: s.lineHeight.unit === "AUTO" ? "auto" : `${s.lineHeight.value}${unit(s.lineHeight.unit)}`,
+      letterSpacing: `${s.letterSpacing.value}${unit(s.letterSpacing.unit)}`,
+      textCase: s.textCase,
+    })),
+  ),
 };
 
 // [collection, name, type, [value in each of the collection's modes]]
-const variableRows = collections.flatMap((c) =>
-  c.variableIds
-    .map((id) => byId.get(id))
-    .filter(Boolean)
-    .map((v) => [c.name, v.name, v.resolvedType, c.modes.map((m) => valueOf(v.valuesByMode[m.modeId]))]),
+const variableRows = sorted(
+  collections.flatMap((c) =>
+    c.variableIds
+      .map((id) => byId.get(id))
+      .filter(Boolean)
+      .map((v) => [c.name, v.name, v.resolvedType, c.modes.map((m) => valueOf(v.valuesByMode[m.modeId]))]),
+  ),
 );
 
 // [name, node id, component key]. loadAsync reads the page without switching
 // to it, so the file is left exactly as it was.
 const iconsPage = await figma.getNodeByIdAsync("2:83");
 await iconsPage.loadAsync();
-const iconRows = iconsPage
-  .findAllWithCriteria({ types: ["COMPONENT", "COMPONENT_SET"] })
-  .filter((n) => n.type === "COMPONENT_SET" || n.parent.type !== "COMPONENT_SET")
-  .map((n) => [n.name, n.id, n.key]);
+const iconRows = sorted(
+  iconsPage
+    .findAllWithCriteria({ types: ["COMPONENT", "COMPONENT_SET"] })
+    .filter((n) => n.type === "COMPONENT_SET" || n.parent.type !== "COMPONENT_SET")
+    .map((n) => [n.name, n.id, n.key]),
+);
 
 const parts = {
   meta,

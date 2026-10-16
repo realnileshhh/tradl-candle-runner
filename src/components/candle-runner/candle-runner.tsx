@@ -14,10 +14,11 @@ import {
   type CandleRunnerEvent,
   type CandleRunnerHandle,
   type EventData,
+  type Theme,
 } from "@/game";
 
 /** What a host can do with a mounted game. It always talks to the game mounted now. */
-export type CandleRunnerControls = Pick<CandleRunnerHandle, "dismiss" | "restart" | "_debugCandles">;
+export type CandleRunnerControls = Pick<CandleRunnerHandle, "dismiss" | "restart" | "setTheme" | "_debugCandles" | "_debugChart">;
 
 export interface CandleRunnerProps {
   /** Show the waiting timer chip. */
@@ -26,6 +27,8 @@ export interface CandleRunnerProps {
   keys?: "window" | "canvas";
   /** Local storage key for the high score. */
   storageKey?: string;
+  /** The design system mode to draw in. Left out, the game follows the page's own mode. */
+  theme?: Theme;
   /** Every event the game posts (PRD section 10). */
   onEvent?: (name: CandleRunnerEvent, data: EventData) => void;
   /** Controls for the host: dismiss() when the user leaves, for example. */
@@ -33,7 +36,7 @@ export interface CandleRunnerProps {
   className?: string;
 }
 
-export function CandleRunner({ timer = true, keys, storageKey, onEvent, ref, className }: CandleRunnerProps) {
+export function CandleRunner({ timer = true, keys, storageKey, theme, onEvent, ref, className }: CandleRunnerProps) {
   const hostRef = useRef<HTMLDivElement>(null);
   const gameRef = useRef<CandleRunnerHandle | null>(null);
   const handleEvent = useEffectEvent((name: CandleRunnerEvent, data: EventData) => onEvent?.(name, data));
@@ -43,7 +46,9 @@ export function CandleRunner({ timer = true, keys, storageKey, onEvent, ref, cla
     () => ({
       dismiss: () => gameRef.current?.dismiss() ?? Promise.resolve(),
       restart: () => gameRef.current?.restart(),
+      setTheme: (next) => gameRef.current?.setTheme(next),
       _debugCandles: () => gameRef.current?._debugCandles() ?? [],
+      _debugChart: (startDay: number, n: number) => gameRef.current?._debugChart(startDay, n) ?? [],
     }),
     [],
   );
@@ -64,6 +69,11 @@ export function CandleRunner({ timer = true, keys, storageKey, onEvent, ref, cla
       gameRef.current = null;
     };
   }, [timer, keys, storageKey]);
+
+  // A new mode is drawn by the game already mounted: no remount, the run goes on.
+  useEffect(() => {
+    gameRef.current?.setTheme(theme);
+  }, [theme, timer, keys, storageKey]);
 
   return <div ref={hostRef} className={className} />;
 }

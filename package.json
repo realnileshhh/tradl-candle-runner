@@ -14,7 +14,9 @@
     "verify": "npm run lint && npm run build && npm test",
     "ds:status": "node scripts/design-system.mjs status",
     "ds:check": "node scripts/design-system.mjs check",
-    "ds:sync": "node scripts/design-system.mjs sync"
+    "ds:sync": "node scripts/design-system.mjs sync",
+    "characters:sync": "node scripts/characters.mjs",
+    "market:sync": "node scripts/market.mjs"
   },
   "dependencies": {
     "@tabler/icons-react": "3.49.0",

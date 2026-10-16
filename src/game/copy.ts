@@ -19,7 +19,7 @@ export const OVER: Record<DeathCause, readonly string[]> = {
   red: ["Stop-loss hit. Ego intact.", "Red candle one, bull nil."],
   gap: ["Gap got you. Mind the gap.", "Fell through the gap. Indices do it too."],
   fall: ["Ran out of chart.", "No candle under you. Happens."],
-  wall: ["Doji wall. Indecision kills.", "Walked straight into indecision."],
+  wall: ["Big red day. Should have jumped it.", "One long red candle. Sessions end like that."],
   bear: ["A bear? In this market?", "The bear was not a drill."],
 };
 
@@ -35,18 +35,21 @@ export const TIMER_HOT_S = 30;
 export const COPY = {
   signature: "tl/.",
   skip: "Skip the game",
-  hi: "Hi",
+  hi: "Personal best",
   score: "Score",
   canvasLabel:
-    "Candle Runner. A bull runs along a candlestick chart while your backtest loads. Tap, click, or press space to jump over red candles, gaps, doji walls and bears.",
+    "Candle Runner. A bull runs along a candlestick chart while your backtest loads. Tap, click, or press space to jump over red candles, gaps and bears.",
   hintTouch: "Tap to jump",
   hintMouse: "Tap or press space to jump",
-  flag: "↑ jump",
-  gameOver: "GAME OVER",
-  newBest: "NEW BEST",
-  again: (secondsLeft: string) => `Again  ·  ${secondsLeft}s`,
-  restartTouch: "tap to restart now",
-  restartMouse: "tap to restart now  ·  press C to copy your score",
+  flag: "jump", // led by the design system's icon-arrow--point-up on the canvas
+  gameOver: "Game over",
+  newBest: "New personal best",
+  // "Re-enter": a trader gets back in after a stop-loss, as the death lines speak
+  // (the user, 2026-10-16). Space re-enters too; touch screens show only the button.
+  again: "Re-enter",
+  restartLead: "Hit",
+  restartKey: "space", // in a keycap, lowercase as a Mac keyboard labels its keys
+  restartTail: "to re-enter",
   announceOver: (score: number, line: string) => `Game over. Score ${score}. ${line}`,
   share: (dodged: number, score: string) =>
     `I dodged ${dodged} candle${dodged === 1 ? "" : "s"} and scored ${score} waiting for my backtest. Candle Runner on Tradl.`,

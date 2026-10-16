@@ -3,13 +3,15 @@
 // The backtest chat's wait screen, rebuilt for review: the step line, the game
 // below it in the chat column, and the host's side of the contract (PRD
 // sections 5 and 7). The game mounts inline (the React component) or in an
-// iframe (the one-file build, sandboxed as the product will run it).
+// iframe (the one-file build, sandboxed as the product will run it). The colour
+// mode switch shows both of the design system's modes, Dark and Light.
 
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-import { IconLoader2 } from "@tabler/icons-react";
+import { IconLoader2, IconMoon, IconSun } from "@tabler/icons-react";
 import { CandleRunner, type CandleRunnerControls } from "@/components/candle-runner/candle-runner";
 import { Icon } from "@/components/icon/icon";
-import type { CandleRunnerEvent, EventData } from "@/game";
+import { setPageTheme, usePageTheme } from "@/components/theme-script/theme-script";
+import type { CandleRunnerEvent, EventData, Theme } from "@/game";
 import styles from "./wait-screen.module.css";
 
 type Mount = "inline" | "iframe";
@@ -28,7 +30,11 @@ const EMBED_SRC = "/candle-runner-loading.html?embed=1";
 const MAX_EVENTS = 14;
 
 export function WaitScreen() {
+  const theme = usePageTheme();
   const [mount, setMount] = useState<Mount>("inline");
+  // The mode a run's frame opened in: its address carries it, so it never changes
+  // while the run lasts (a new address would reload the frame and restart the game).
+  const [frameTheme, setFrameTheme] = useState<Theme>("dark");
   const [status, setStatus] = useState<Status>("running");
   const [showGame, setShowGame] = useState(true);
   const [run, setRun] = useState(1);
@@ -93,10 +99,23 @@ export function WaitScreen() {
     window.clearTimeout(removeTimer.current);
     pending.current = null;
     setMount(nextMount);
+    setFrameTheme(theme);
     setStatus("running");
     setShowGame(true);
     setEvents([]);
     setRun((r) => r + 1);
+  }
+
+  // The inline game follows <html> by itself. The frame is a document of its own:
+  // it opened in frameTheme and hears every switch after that as a message.
+  function chooseTheme(next: Theme) {
+    setPageTheme(next);
+    frame.current?.contentWindow?.postMessage({ type: "cr:theme", theme: next }, "*");
+  }
+
+  // A switch made while the frame was still loading arrived before it listened.
+  function onFrameLoad() {
+    if (theme !== frameTheme) frame.current?.contentWindow?.postMessage({ type: "cr:theme", theme }, "*");
   }
 
   return (
@@ -119,6 +138,25 @@ export function WaitScreen() {
                 {m === "inline" ? "Inline" : "Iframe"}
               </button>
             ))}
+          </div>
+          <div className={styles.segmented} role="radiogroup" aria-label="Colour mode">
+            {(["dark", "light"] as const).map((t) => {
+              // The design system has no sun or moon icon, so these are Tabler's.
+              const ModeIcon = t === "dark" ? IconMoon : IconSun;
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme === t}
+                  className={styles.segment}
+                  onClick={() => chooseTheme(t)}
+                >
+                  <ModeIcon className={styles.segmentIcon} aria-hidden="true" />
+                  {t === "dark" ? "Dark" : "Light"}
+                </button>
+              );
+            })}
           </div>
           <button
             type="button"
@@ -158,11 +196,12 @@ export function WaitScreen() {
             <iframe
               key={run}
               ref={frame}
-              src={EMBED_SRC}
+              src={`${EMBED_SRC}&theme=${frameTheme}`}
               title="Candle Runner"
               sandbox="allow-scripts"
               className={styles.frame}
               style={{ height: frameHeight }}
+              onLoad={onFrameLoad}
             />
           ))}
       </main>
