@@ -33,6 +33,7 @@ const GENERATED = new Set([
   DS_CSS,
   join(root, "src/design-system/tokens.ts"),
   join(root, "src/design-system/icons.ts"),
+  join(root, "src/design-system/logos.ts"),
 ]);
 
 const definitions = (file, prefix) =>
