@@ -1,0 +1,28 @@
+/*
+ * The classic characters' tokens, as src/game/tokens.css held them on 16 October 2026
+ * before the bull and the bear from Figma replaced them. Restore them together with
+ * art.ts (see README.md).
+ */
+:root {
+  /* The characters are illustrations: the design system has no illustration
+     palette, so each takes the nearest primitive, the same in both modes. */
+  --cr-bull: var(--ds-primitive-color-neutral-grey-150);
+  --cr-bull-shade: var(--ds-primitive-color-neutral-grey-300);
+  --cr-bull-ink: var(--ds-primitive-color-neutral-grey-800);
+  --cr-horn: var(--ds-primitive-color-chart-sand);
+  --cr-eye: var(--ds-primitive-color-neutral-white);
+  --cr-bear: var(--ds-primitive-color-yellow-700);
+  --cr-bear-light: var(--ds-primitive-color-chart-sand-light);
+  --cr-bear-ink: var(--ds-primitive-color-neutral-grey-800);
+}
+
+/* The palette entries art.ts reads (src/game/palette.ts, readPalette):
+     bull: solid("--cr-bull"),
+     bullShade: solid("--cr-bull-shade"),
+     ink: solid("--cr-bull-ink"),
+     horn: solid("--cr-horn"),
+     eye: solid("--cr-eye"),
+     bear: solid("--cr-bear"),
+     bearLight: solid("--cr-bear-light"),
+     bearInk: solid("--cr-bear-ink"),
+   and the nose ring takes P.gold (--cr-gold). */

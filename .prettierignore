@@ -1,5 +1,7 @@
 # Generated: by `npm run ds:sync`, `npm run build:embed`, Next and Playwright
 src/design-system/
+src/game/characters.ts
+src/game/nifty-data.ts
 public/candle-runner-loading.html
 .next/
 next-env.d.ts
@@ -9,6 +11,7 @@ playwright-report/
 # Kept exactly as they came
 reference/
 design-system/
+characters/
 docs/prd/
 AGENTS.md
 

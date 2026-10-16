@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     // the original game, kept as it shipped; the one-file build
     "reference/**",
     "public/**",
+    // the classic characters, kept as they were (characters/classic/README.md)
+    "characters/classic/**",
     // runs inside Figma (top-level return), not in Node
     "scripts/figma/**",
     "test-results/**",
